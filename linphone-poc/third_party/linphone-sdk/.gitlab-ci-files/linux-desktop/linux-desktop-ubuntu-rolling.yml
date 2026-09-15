@@ -1,0 +1,165 @@
+wait-cache-synchro-ubuntu-rolling:
+  extends: .wait-cache-synchro
+  variables:
+    BUILD_SUBTYPE: ubuntu-rolling
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+
+recache-ubuntu-rolling:
+  extends: .recache-update-cache
+  # Set as this job can only be launched manually in mr, so the cache could be absent
+  allow_failure: true
+  image: !reference [.ubuntu-rolling_image_version, image]
+
+#Build template to use in other job scripts without having to copy same code
+#format = .className: &referenceName
+#Use = "<< *referenceName" to use the template ("-*" in script)
+
+
+.factorize_ubuntu-rolling: &docker_image_platform_and_runner_tag
+  tags: [ "docker-test" ]
+  image: !reference [.ubuntu-rolling_image_version, image]
+  variables:
+    PLATFORM: linux-ubuntu-rolling
+
+#################################################
+# Makefile
+#################################################
+
+
+ubuntu-rolling-makefile-gcc:
+
+  tags: [ "docker-flat" ]
+  image: !reference [.ubuntu-rolling_image_version, image]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $DOCKER_UPDATE_UBUNTU != null
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_LINUX_BUILDS != null && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: gcc
+    CXX: g++
+    #Only used to overwrite value set by .set_parallel_level.yml
+    #ADDITIONAL_BUILD_OPTIONS: -j[jobs]
+  extends: .linux-desktop
+
+
+ubuntu-rolling-makefile-clang:
+ tags: [ "docker-flat" ]
+ image: !reference [.ubuntu-rolling_image_version, image]
+ variables:
+   CMAKE_GENERATOR: Unix Makefiles
+   CC: clang
+   CXX: clang++
+   #Only used to overwrite value set by .set_parallel_level.yml
+   #ADDITIONAL_BUILD_OPTIONS: -j[jobs]
+ extends: .linux-desktop
+
+
+#################################################
+# Ninja
+#################################################
+
+
+ubuntu-rolling-ninja-gcc:
+
+ tags: [ "docker-flat" ]
+ image: !reference [.ubuntu-rolling_image_version, image]
+ variables:
+   CMAKE_GENERATOR: Ninja
+   CC: gcc
+   CXX: g++
+ extends: .linux-desktop
+
+
+ubuntu-rolling-ninja-gcc-novideo:
+ variables:
+   CMAKE_OPTIONS: -DENABLE_VIDEO=OFF
+ extends: ubuntu-rolling-ninja-gcc
+
+
+ubuntu-rolling-ninja-clang:
+  tags: [ "docker-flat" ]
+  image: !reference [.ubuntu-rolling_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: clang
+    CXX: clang++
+  extends: .linux-desktop
+
+ubuntu-rolling-ninja-clang-pqc:
+  variables:
+    CMAKE_OPTIONS: -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON
+  extends: ubuntu-rolling-ninja-clang
+
+ubuntu-rolling-ninja-clang-novideo:
+ variables:
+   CMAKE_OPTIONS: -DENABLE_VIDEO=OFF
+ extends: ubuntu-rolling-ninja-clang
+
+#################################################
+# TESTS
+#################################################
+
+
+bctoolbox-ubuntu-test:
+  extends: .test-bctoolbox
+  needs:
+    - ubuntu-rolling-ninja-clang
+  <<: *docker_image_platform_and_runner_tag
+
+pqc-ubuntu-test:
+  extends: .test-pqc
+  <<: *docker_image_platform_and_runner_tag
+  needs:
+    - ubuntu-rolling-ninja-clang-pqc
+
+bellesip-ubuntu-test:
+  extends: .test-bellesip
+  needs:
+    - ubuntu-rolling-ninja-clang
+  tags: [ "docker-test-ubuntu-rolling-nuc" ]
+  image: !reference [.ubuntu-rolling_image_version, image]
+  variables:
+    PLATFORM: linux-ubuntu-rolling
+
+belr-ubuntu-test:
+  extends: .test-belr
+  needs:
+    - ubuntu-rolling-ninja-clang
+  <<: *docker_image_platform_and_runner_tag
+
+belcard-ubuntu-test:
+  extends: .test-belcard
+  needs:
+    - ubuntu-rolling-ninja-clang
+  <<: *docker_image_platform_and_runner_tag
+
+bzrtp-ubuntu-test:
+  extends: .test-bzrtp
+  needs:
+    - ubuntu-rolling-ninja-clang
+  <<: *docker_image_platform_and_runner_tag
+
+ortp-ubuntu-test:
+  extends: .test-ortp
+  needs:
+    - ubuntu-rolling-ninja-clang
+  <<: *docker_image_platform_and_runner_tag
+
+liblinphone-ubuntu-test:
+  image: !reference [.ubuntu-rolling-test-liblinphone_image_version, image]
+  extends: .test-liblinphone
+  needs:
+    - ubuntu-rolling-ninja-clang
+  variables:
+    PLATFORM: linux-ubuntu-rolling
+
+liblinphone-ubuntu-test-shaky:
+  image: !reference [.ubuntu-rolling-test-liblinphone_image_version, image]
+  extends: .test-liblinphone-shaky
+  needs:
+    - ubuntu-rolling-ninja-clang
+  variables:
+    PLATFORM: linux-ubuntu-rolling

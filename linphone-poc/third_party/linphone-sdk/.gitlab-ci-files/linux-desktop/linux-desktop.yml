@@ -1,0 +1,617 @@
+#################################################
+# BUILD
+#################################################
+
+.linux-desktop:
+
+  stage: build
+  extends: .linux-prepare
+  variables:
+    CMAKE_OPTIONS: -DENABLE_LDAP=ON
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_LINUX_BUILDS != null && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+  script:
+    - echo $CI_PIPELINE_SOURCE
+    - echo $CI_OPEN_MERGE_REQUESTS
+    - echo $CI_COMMIT_BRANCH
+    - export CC=$CC
+    - export CXX=$CXX
+    - echo $CMAKE_GENERATOR
+    - echo $DEFAULT_LINUX_CMAKE_OPTIONS
+    - echo $CMAKE_OPTIONS
+    - echo $CMAKE_SANITIZER_OPTIONS
+    - cmake --preset=default -B build/default -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=RelWithDebInfo $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS
+    - echo $ADDITIONAL_BUILD_OPTIONS
+    - cmake --build build/default --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - echo $(git describe) > build/default/gitdescribe.txt
+  artifacts:
+    paths:
+      - sanitizer_ignore.txt
+      - build/default/gitdescribe.txt
+      - build/default/linphone-sdk/desktop/bin/*
+      - build/default/linphone-sdk/desktop/lib/*
+      - build/default/linphone-sdk/desktop/lib64/*
+      - build/default/linphone-sdk/desktop/include/*
+      - build/default/linphone-sdk/desktop/share/*
+    expire_in: 1 day
+
+.linux-desktop-python:
+
+  stage: build
+  extends: .linux-prepare
+  variables:
+    CMAKE_OPTIONS: -DENABLE_LDAP=ON -DENABLE_PYTHON_WRAPPER=ON -DENABLE_DOC=ON
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $DEPLOY_PYTHON != null && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+  script:
+    - echo $CI_PIPELINE_SOURCE
+    - echo $CI_OPEN_MERGE_REQUESTS
+    - echo $CI_COMMIT_BRANCH
+    - export CC=$CC
+    - export CXX=$CXX
+    - echo $CMAKE_GENERATOR
+    - echo $DEFAULT_LINUX_CMAKE_OPTIONS
+    - echo $CMAKE_OPTIONS
+    - echo $ADDITIONAL_CMAKE_OPTIONS
+    - echo $CMAKE_SANITIZER_OPTIONS
+    - cmake --preset=default -B build/default -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $ADDITIONAL_CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS
+    - echo $ADDITIONAL_BUILD_OPTIONS
+    - cmake --build build/default --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cmake --build build/default --target wheel -- $ADDITIONAL_BUILD_OPTIONS
+    - echo $(git describe) > build/default/gitdescribe.txt
+  artifacts:
+    paths:
+      - sanitizer_ignore.txt
+      - build/default/gitdescribe.txt
+      - build/default/linphone-sdk/desktop/linphone*.whl
+      - build/default/linphone-sdk/desktop/pylinphone.html
+      - build/default/linphone-sdk/desktop/share/pylinphone
+    expire_in: 1 day
+
+.linux-desktop-java:
+
+  stage: build
+  extends: .linux-prepare
+  variables:
+    CMAKE_OPTIONS: -DENABLE_DOC=ON
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+  script:
+    - echo $CI_PIPELINE_SOURCE
+    - echo $CI_OPEN_MERGE_REQUESTS
+    - echo $CI_COMMIT_BRANCH
+    - export CC=$CC
+    - export CXX=$CXX
+    - echo $CMAKE_GENERATOR
+    - echo $DEFAULT_LINUX_CMAKE_OPTIONS
+    - echo $CMAKE_OPTIONS
+    - echo $CMAKE_SANITIZER_OPTIONS
+    - cmake --preset=java-sdk-linux -B build/java -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $ADDITIONAL_CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS
+    - echo $ADDITIONAL_BUILD_OPTIONS
+    - cmake --build build/java -- $ADDITIONAL_BUILD_OPTIONS
+    - echo $(git describe) > build/java/gitdescribe.txt
+  artifacts:
+    paths:
+      - sanitizer_ignore.txt
+      - build/java/gitdescribe.txt
+      - build/java/linphone-sdk/bin/distributions/linphone-sdk-java-*.zip
+      - build/java/linphone-sdk/java/share/linphonej/WrapperTests
+    expire_in: 1 day
+
+.linux-desktop-sequential:
+
+  stage: build
+  extends: .linux-prepare
+  variables:
+    CMAKE_OPTIONS: -DENABLE_LDAP=ON
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == "schedule") && $ALL_LINUX_BUILDS != null && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+  script:
+    - export CC=$CC
+    - export CXX=$CXX
+    - echo $CMAKE_GENERATOR
+    - echo $DEFAULT_LINUX_CMAKE_OPTIONS
+    - echo $CMAKE_OPTIONS
+    - echo $CMAKE_SANITIZER_OPTIONS
+    - echo $ADDITIONAL_BUILD_OPTIONS
+    - mkdir -p build/linphone-sdk/desktop
+    - export LINPHONESDK_INSTALL_PREFIX=`pwd`/build/linphone-sdk/desktop
+    - cd external/mbedtls
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX -DENABLE_PROGRAMS=OFF -DENABLE_TESTING=OFF -DMBEDTLS_FATAL_WARNINGS=OFF -DUSE_SHARED_MBEDTLS_LIBRARY=ON -DUSE_STATIC_MBEDTLS_LIBRARY=OFF
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../../../bcunit
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../../bctoolbox
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../../ortp
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../../bzrtp
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../../bcg729
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../../bcmatroska2
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../../mediastreamer2
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX -DENABLE_QRCODE=OFF -DENABLE_STRICT=OFF
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../../mswebrtc
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../../belr
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../../belle-sip
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../../belcard
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../../liblinphone
+    - mkdir -p build
+    - cd build
+    - cmake .. -G "$CMAKE_GENERATOR" $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS -DCMAKE_INSTALL_PREFIX=$LINPHONESDK_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$LINPHONESDK_INSTALL_PREFIX -DENABLE_DB_STORAGE=OFF -DENABLE_FLEXIAPI=OFF -DENABLE_LIME_X3DH=OFF -DENABLE_QRCODE=OFF
+    - cmake --build . --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - cd ../..
+    - echo $(git describe) > build/gitdescribe.txt
+  artifacts:
+    paths:
+      - sanitizer_ignore.txt
+      - build/gitdescribe.txt
+      - build/linphone-sdk/desktop/bin/*
+      - build/linphone-sdk/desktop/lib/*
+      - build/linphone-sdk/desktop/include/*
+      - build/linphone-sdk/desktop/share/*
+    expire_in: 1 day
+
+
+#################################################
+# TESTS
+#################################################
+
+.test:
+  stage: test
+  extends: .job-prepare
+  allow_failure: true
+  # Prevent tests from fetching repo. They have all needed files in upcoming artifacts
+  variables:
+    GIT_STRATEGY: none
+    GIT_SUBMODULE_STRATEGY: none
+    USE_TUNNEL_PQ_TESTS_LIBLINPHONE: "false"
+    CRYPTO_BACKEND_TESTS_LIBLINPHONE: "false"
+    SHAKY_TESTS_LIBLINPHONE: "false"
+    LIBLINPHONE_TESTER_PARALLEL_OPTIONS: "--parallel --parallel-max 32"
+    LOG_PATTERN2: ""
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ENABLE_LINUX_TESTS != null && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+
+  script:
+    #add Sanitizer's ignore list for known leaks
+    - export LSAN_OPTIONS="exitcode=255:suppressions=${CI_PROJECT_DIR}/sanitizer_ignore.txt"
+    - export ASAN_OPTIONS="exitcode=255"
+
+    # - cd $PATH_TO_TESTER
+    - echo $PATH_TO_TESTER
+
+    #pulseaudio launch for mediastreamer
+    - $PULSEAUDIO
+    - echo $PULSEAUDIO
+
+    #X emulation for linphone
+    - $XVFB &
+    - echo $XVFB
+    - $EXPORT_DISPLAY
+    - echo $EXPORT_DISPLAY
+
+    - ls -la
+
+    #enabling SYS_NICE cap for ms2 and liblinphone testers
+
+    - echo $TESTER_BIN
+    - echo ${TESTER_BIN}
+
+    - echo $SET_CAP_SYS_NICE_LIN
+    - $SET_CAP_SYS_NICE_LIN || true
+
+    - echo $SET_CAP_SYS_NICE_NET_ADMIN_MS
+    - $SET_CAP_SYS_NICE_NET_ADMIN_MS || true
+
+    #checking if the tester has SYS_NICE cap
+    - getcap $PATH_TO_TESTER/$TESTER_BIN || true
+
+    - echo $RESOURCES_DIR
+    - echo $ADDITIONNAL_OPTIONS
+    - echo $LOG_PATTERN.txt
+    - echo $LOG_PATTERN2.txt
+    - echo $SHAKY_TESTS_LIBLINPHONE
+    - |
+        if [ $USE_TUNNEL_PQ_TESTS_LIBLINPHONE = "false" ];
+        then
+           if [ $CRYPTO_BACKEND_TESTS_LIBLINPHONE = "false" ];
+           then
+              if [ $SHAKY_TESTS_LIBLINPHONE = "false" ];
+              then
+                  $PATH_TO_TESTER/$TESTER_BIN --verbose $LIBLINPHONE_TESTER_PARALLEL_OPTIONS --tag '!shaky' $RESOURCES_DIR $ADDITIONNAL_OPTIONS --log-file $LOG_PATTERN.txt || EXIT=$?
+              else
+                  $PATH_TO_TESTER/$TESTER_BIN --verbose $LIBLINPHONE_TESTER_PARALLEL_OPTIONS --tag 'shaky' --max-failed 2 $RESOURCES_DIR $ADDITIONNAL_OPTIONS --log-file $LOG_PATTERN.txt --xml --xml-file BCUnitAutomatedShaky || EXIT=$?
+              fi
+           else
+              EXIT_CRYPTO_BACKEND_TAG=0;
+              $PATH_TO_TESTER/$TESTER_BIN --verbose $LIBLINPHONE_TESTER_PARALLEL_OPTIONS --tag "CRYPTO" --tag '!shaky' $RESOURCES_DIR --log-file $LOG_PATTERN.txt --xml --xml-file BCUnitAutomatedCrypto $ADDITIONNAL_OPTIONS || EXIT_CRYPTO_BACKEND_TAG=$?
+           fi
+        else
+
+          EXIT_H264_CALLS_MESSAGES_CONFERENCES_TAG_OVER_TUNNEL_AND_PQ=0;
+          EXIT_TUNNEL_OVER_TUNNEL_AND_PQ=0;
+
+          $PATH_TO_TESTER/$TESTER_BIN --verbose $LIBLINPHONE_TESTER_PARALLEL_OPTIONS --tag "H264" --tag "End2EndConf" --tag "LimeX3DH" --tag "PQCalls" --tag '!shaky'  $RESOURCES_DIR --log-file $LOG_PATTERN.txt --xml --xml-file BCUnitAutomatedH264PQCallsMessagesConferencesTags $ADDITIONNAL_OPTIONS || EXIT_H264_CALLS_MESSAGES_CONFERENCES_TAG_OVER_TUNNEL_AND_PQ=$?
+
+         # $PATH_TO_TESTER/$TESTER_BIN --verbose --suite "Tunnel" $RESOURCES_DIR --log-file $LOG_PATTERN2.txt --xml --xml-file BCUnitAutomatedTunnel $ADDITIONNAL_OPTIONS || EXIT_TUNNEL_OVER_TUNNEL_AND_PQ=$?
+
+        fi
+
+    - $PULSEAUDIO_KILL
+
+    - |
+        if [ $USE_TUNNEL_PQ_TESTS_LIBLINPHONE = "false" ];
+        then
+          if [ $CRYPTO_BACKEND_TESTS_LIBLINPHONE = "false" ];
+          then
+             exit $EXIT
+          else
+             echo "EXIT_CRYPTO_BACKEND_TAG=$EXIT_CRYPTO_BACKEND_TAG";
+             if [ $EXIT_CRYPTO_BACKEND_TAG != 0 ] ;
+             then
+               exit 1;
+             else
+               exit 0;
+             fi;
+          fi
+        else
+          echo "EXIT_H264_CALLS_MESSAGES_CONFERENCES_TAG_OVER_TUNNEL_AND_PQ=$EXIT_H264_CALLS_MESSAGES_CONFERENCES_TAG_OVER_TUNNEL_AND_PQ";
+          echo "EXIT_TUNNEL_OVER_TUNNEL_AND_PQ=$EXIT_TUNNEL_OVER_TUNNEL_AND_PQ";
+          if [ $EXIT_H264_CALLS_MESSAGES_CONFERENCES_TAG_OVER_TUNNEL_AND_PQ != 0 ];
+          then
+            exit 1;
+          else
+            exit 0;
+          fi;
+        fi;
+
+  after_script:
+    - pwd
+
+    #.gdbinit is used to store gdb init scripts
+    #we use it to avoid the need to specify manually the commands for each potential coredump
+    - echo "thread apply all bt" | sudo tee .gdbinit
+    #We need to add this command in two .gdbinit files, one in the current directory and the other in the home directory, for gdb to pick the above command.
+    - echo add-auto-load-safe-path ./.gdbinit | sudo tee -a /home/bc/.gdbinit
+
+    - ROCKY_VERSION=$(cat /etc/rocky-release) || true
+    - echo ${ROCKY_VERSION}
+    - if [ -n "$ROCKY_VERSION" ] && [ -n "$(echo $ROCKY_VERSION | grep -o 'release 8')" ]; then source /opt/rh/gcc-toolset-12/enable; fi
+
+    # searching for core files and if there are some, launch gdb on all of it
+    # xargs -L1 means that the command in argument will be executed for each line (core dump) found in find output
+    # "true ||" is used here to continue the script even if the find fails
+    # -maxdepth 0 is to only search core files in the current directory where there are expected to be,
+    # instead of recursiving into subdirectories where many sources files can start with "core*".
+    - if [[ -n $(find . -maxdepth 0 -type f -name 'core*') ]]; then find . -type f -name 'core*' | xargs -d '\n' -L1 gdb $PATH_TO_TESTER/$TESTER_BIN; fi || true
+    - COMMIT=$(cat ${CI_PROJECT_DIR}/build/default/gitdescribe.txt)
+    - echo $COMMIT
+    #generation of html file to redirect on test results page
+
+    - BRANCH=$CI_COMMIT_REF_NAME
+    - echo $BRANCH
+    - ESCAPED_BRANCH=$(echo $BRANCH | tr / _)
+    - echo $ESCAPED_BRANCH
+    - URL=https://$DEPLOY_SERVER_DOMAIN/snapshots/allure-tests-reports/$ESCAPED_BRANCH/$COMMIT-$CI_JOB_ID/$PLATFORM/$TESTER/allure-report
+
+    - echo "<\!DOCTYPE HTML>" >> index.html
+    - echo "<meta charset=\"UTF-8\">" >> index.html
+    - echo "<meta http-equiv=\"refresh\" content=\"1; url=$URL\">" >> index.html
+    - echo "<script>" >> index.html
+    - echo "  window.location.href = \"$URL\"" >> index.html
+    - echo "</script>" >> index.html
+    - echo "<title>Page Redirection</title>" >> index.html
+    - echo "<\!-- Don't tell people to \`click\` the link, just tell them that it is a link. -->" >> index.html
+    - echo "If you are not redirected automatically, follow the <a href='$URL'>link to see the test report</a>" >> index.html
+    - cat index.html
+    - echo "TEST REPORTS URL $URL"
+    - echo "alias URL=https://$DEPLOY_SERVER_DOMAIN/snapshots/allure-tests-reports/$ESCAPED_BRANCH/$GITLAB_USER_LOGIN/$COMMIT-$CI_JOB_ID/$PLATFORM/$TESTER/allure-report"
+
+    # simplifing artifacts browsing
+    # Moving artifacts to ease browsing from web view
+    # initially, all the paths needed to be browsed entirely to see artifacts
+    # now there is only the folder "results" to check
+    - sudo mkdir ${CI_PROJECT_DIR}/results
+    - sudo chmod 777 ${CI_PROJECT_DIR}/results
+    - cp -r BCUnitAutomated* ${CI_PROJECT_DIR}/results
+    # Some testers store all logs in the same logfile which will be named ${BASE_PATTERN}.txt whereas others create a logfile for every suite in addition to the global logfile.
+    # The following code's goal is to avoid copying the global logfile if a log per suite exists
+    - |
+        for BASE_PATTERN in ${LOG_PATTERN} ${LOG_PATTERN2};
+        do
+          if [ "${BASE_PATTERN}" != "" ];
+          then
+            PATTER=""
+            if [[ -n $(find . -type f -name "${BASE_PATTERN}.txt_*") ]];
+            then
+              PATTERN=${BASE_PATTERN}.txt_*;
+            else
+              PATTERN=${BASE_PATTERN}.txt;
+            fi
+            echo "Copying logs with pattern ${PATTERN}"
+            cp -r ${PATTERN} ${CI_PROJECT_DIR}/results;
+          fi
+        done
+    - cp index.html ${CI_PROJECT_DIR}/results
+    - echo $CI_JOB_ID > ${CI_PROJECT_DIR}/results/tests_id
+    - echo $CI_JOB_URL > ${CI_PROJECT_DIR}/results/job_url
+
+  artifacts:
+    paths:
+      - ${CI_PROJECT_DIR}/results/*
+      - ${CI_PROJECT_DIR}/build/default/gitdescribe.txt
+    when: always
+    reports:
+      junit:
+        - ${CI_PROJECT_DIR}/BCUnitAutomated*-Results.xml
+    expire_in: 1 week
+
+.test-bctoolbox:
+  extends: .test
+  variables:
+    TESTER_BIN: "bctoolbox-tester"
+    LOG_PATTERN: "logBctoolboxAllPar"
+    PATH_TO_TESTER: "${CI_PROJECT_DIR}/build/default/linphone-sdk/desktop/bin"
+    TESTER: "bctoolbox"
+
+.test-bctoolbox-mr:
+  extends: .test-bctoolbox
+    #  only:
+    #changes:
+    #  - bctoolbox
+  allow_failure: false
+  #Only launches mr tests on mr, excepted for wip and draft
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+.test-ortp:
+  extends: .test
+  variables:
+    TESTER_BIN: "ortp-tester"
+    LOG_PATTERN: "logOrtpAllPar"
+    PATH_TO_TESTER: "${CI_PROJECT_DIR}/build/default/linphone-sdk/desktop/bin"
+    RESOURCES_DIR: "--resource-dir ${CI_PROJECT_DIR}/build/default/linphone-sdk/desktop/share/"
+    TESTER: "ortp"
+
+.test-ortp-mr:
+  extends: .test-ortp
+    #  only:
+    #changes:
+    #  - ortp
+  allow_failure: false
+  #Only launches mr tests on mr, excepted for wip and draft
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+.test-pqc:
+  extends: .test
+  variables:
+    TESTER_BIN: "pqcrypto-tester"
+    LOG_PATTERN: "logPostQuantumCryptoEngineAllPar"
+    PATH_TO_TESTER: "${CI_PROJECT_DIR}/build/default/linphone-sdk/desktop/bin"
+    TESTER: "postquantumcryptoengine"
+
+
+.test-pqc-mr:
+ extends: .test-pqc
+ allow_failure: false
+ #Only launches mr tests on mr, excepted for wip and draft
+ rules:
+   - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+.test-bellesip:
+  extends: .test
+  variables:
+    TESTER_BIN: "belle-sip-tester"
+    LOG_PATTERN: "logBellesipAllPar"
+    PATH_TO_TESTER: "${CI_PROJECT_DIR}/build/default/linphone-sdk/desktop/bin"
+    RESOURCES_DIR: "--resource-dir ${CI_PROJECT_DIR}/build/default/linphone-sdk/desktop/share/"
+    TESTER: "bellesip"
+
+
+# .test-bellesip-mr:
+#   extends: .test-bellesip
+#   only:
+#     refs:
+#       - branches
+#       - tags
+#     changes:
+#       - belle-sip
+#     variables:
+#       - $ENABLE_TESTS_IN_MR
+#   except:
+#    - schedules
+
+
+.test-belr:
+  extends: .test
+  variables:
+    TESTER_BIN: "belr-tester"
+    LOG_PATTERN: "logBelrAllPar"
+    PATH_TO_TESTER: "${CI_PROJECT_DIR}/build/default/linphone-sdk/desktop/bin"
+    RESOURCES_DIR: "--resource-dir ${CI_PROJECT_DIR}/build/default/linphone-sdk/desktop/share/belr-tester/res"
+    TESTER: "belr"
+  # only:
+  #   changes:
+  #     - belr
+
+.test-belr-mr:
+  extends: .test-belr
+  #Only launches mr tests on mr, excepted for wip and draft
+  allow_failure: false
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+.test-belcard:
+  extends: .test
+  variables:
+    TESTER_BIN: "belcard-tester"
+    LOG_PATTERN: "logBelcardAllPar"
+    PATH_TO_TESTER: "${CI_PROJECT_DIR}/build/default/linphone-sdk/desktop/bin"
+    TESTER: "belcard"
+  # only:
+  #   changes:
+  #     - belcard
+
+
+.test-belcard-mr:
+  extends: .test-belcard
+  #Only launches mr tests on mr, excepted for wip and draft
+  allow_failure: false
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+.test-bzrtp:
+  extends: .test
+  variables:
+    TESTER_BIN: "bzrtp-tester"
+    LOG_PATTERN: "logBzrtpAllPar"
+    PATH_TO_TESTER: "${CI_PROJECT_DIR}/build/default/linphone-sdk/desktop/bin"
+    TESTER: "bzrtp"
+
+.test-bzrtp-mr:
+  extends: .test-bzrtp
+  #Only launches mr tests on mr, excepted for wip and draft
+  allow_failure: false
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+.test-mediastreamer:
+  tags: [ "docker-test-liblinphone" ]
+  extends: .test
+  variables:
+    TESTER_BIN: "mediastreamer2-tester"
+    PULSEAUDIO: "pulseaudio -D -L module-virtual-source --exit-idle-time=-1"
+    PULSEAUDIO_KILL: "pulseaudio --kill"
+    LOG_PATTERN: "logMediastreamerAllPar"
+    PATH_TO_TESTER: "${CI_PROJECT_DIR}/build/default/linphone-sdk/desktop/bin"
+    SET_CAP_SYS_NICE_NET_ADMIN_MS: "sudo setcap cap_net_admin,cap_sys_nice+ep ${PATH_TO_TESTER}/${TESTER_BIN}"
+    TESTER: "mediastreamer"
+
+.test-mediastreamer-mr:
+  extends: .test-mediastreamer
+  #Only launches mr tests on mr, excepted for wip and draft
+  allow_failure: false
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+.test-liblinphone:
+  tags: [ "docker-test-liblinphone" ]
+  extends: .test
+  allow_failure: true
+  variables:
+    TESTER_BIN: "liblinphone-tester"
+    XVFB: "Xvfb :99"
+    PULSEAUDIO: ""
+    EXPORT_DISPLAY: "export DISPLAY=:99"
+    LOG_PATTERN: "logLiblinphoneAllParThIpv6"
+    PATH_TO_TESTER: "${CI_PROJECT_DIR}/build/default/linphone-sdk/desktop/bin"
+    ADDITIONNAL_OPTIONS: "--show-account-manager-logs --dns-server $LIBLINPHONE_TESTER_DNS"
+    SET_CAP_SYS_NICE_LIN: "sudo setcap cap_sys_nice+ep ${PATH_TO_TESTER}/${TESTER_BIN}"
+    TESTER: "liblinphone"
+    #false
+    USE_TUNNEL_PQ_TESTS_LIBLINPHONE: "false"
+    CRYPTO_BACKEND_TESTS_LIBLINPHONE: "false"
+    SHAKY_TESTS_LIBLINPHONE: "false"
+
+.test-liblinphone-shaky:
+  extends: .test-liblinphone
+  tags: [ "docker-test-liblinphone" ]
+  variables:
+    LOG_PATTERN: "logLiblinphoneShaky"
+    SHAKY_TESTS_LIBLINPHONE: "true"
+
+.test-liblinphone-tunnel-pq:
+  extends: .test-liblinphone
+  tags: [ "docker-test-liblinphone" ]
+  variables:
+    #true
+    USE_TUNNEL_PQ_TESTS_LIBLINPHONE: "true"
+    LOG_PATTERN: "logLiblinphoneH264EKTOverTunnelAndPQThIpv6"
+    LOG_PATTERN2: "logLiblinphoneTunnelOverTunnelAndPQThIpv6"
+
+.test-liblinphone-crypto-backend:
+  extends: .test-liblinphone
+  tags: [ "docker-test-liblinphone" ]
+  variables:
+    #true
+    CRYPTO_BACKEND_TESTS_LIBLINPHONE: "true"
+
+.test-liblinphone-mr:
+  extends: .test-liblinphone
+  allow_failure: false
+  #Only launches mr tests on mr, excepted for wip and draft
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+.test-liblinphone-shaky-mr:
+  extends: .test-liblinphone-shaky
+  allow_failure: false
+  #Only launches mr tests on mr, excepted for wip and draft
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+.test-liblinphone-tunnel-pq-mr:
+  extends: .test-liblinphone-mr
+  tags: [ "docker-test-liblinphone" ]
+  allow_failure: false
+  variables:
+    #true
+    USE_TUNNEL_PQ_TESTS_LIBLINPHONE: "true"
+    LOG_PATTERN: "logLiblinphoneH264EKTOverTunnelAndPQThIpv6"
+
+.test-liblinphone-crypto-backend-mr:
+  extends: .test-liblinphone-mr
+  tags: [ "docker-test-liblinphone" ]
+  allow_failure: true
+  variables:
+    #true
+    CRYPTO_BACKEND_TESTS_LIBLINPHONE: "true"
+    LOG_PATTERN: "logLiblinphoneCryptoThIpv6"

@@ -1,0 +1,43 @@
+FROM rockylinux:8
+
+LABEL org.opencontainers.image.authors="Alexandre Jörgensen <alexandre.jorgensen@belledonne-communications.com>"
+
+# Update
+RUN dnf makecache --refresh && dnf -y update
+
+# Install common general tools
+RUN dnf install -y sudo
+
+# Configure additional repositories
+RUN dnf install -y epel-release && \
+    dnf install -y dnf-plugins-core && \
+    dnf config-manager -y --set-enabled devel
+
+# Install development tools
+RUN dnf -y install ccache cmake yasm nasm doxygen gcc clang meson ninja-build perl && \
+    dnf -y clean all
+
+RUN dnf -y install ccache openssh openssh-clients git alsa-lib-devel pulseaudio-libs-devel libv4l-devel mysql-devel sqlite-devel && \
+    dnf -y clean all
+
+# Install gcc toolset 12
+RUN dnf -y install gcc-toolset-12 gcc-toolset-12-libasan-devel gcc-toolset-12-libubsan-devel gcc-toolset-12-gdb
+
+# Install python-devel and pip
+RUN dnf -y install python39-devel
+RUN dnf -y install python39-pip
+
+# Configure user bc
+RUN useradd -ms /bin/bash bc && \
+    echo 'bc:cotcot' | chpasswd && \
+    echo 'bc ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Switch to 'bc' user
+USER bc
+WORKDIR /home/bc
+
+# Install python development tools
+RUN pip3.9 install --user pystache six cython wheel pdoc
+
+
+ENV PATH=$PATH:/home/bc/.local/bin

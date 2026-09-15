@@ -1,0 +1,82 @@
+#################################################
+# BUILD
+#################################################
+wait-cache-synchro-raspberrypi:
+  extends: .wait-cache-synchro
+  variables:
+    BUILD_SUBTYPE: raspberrypi
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_LINUX_BUILDS != null && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+
+recache-raspberrypi:
+  extends: .recache-update-cache
+  # Set as this job can only be launched manually in mr, so the cache could be absent
+  allow_failure: true
+  image: !reference [.raspios_image_version, image]
+
+
+.raspberrypi:
+
+  stage: build
+  extends: .linux-prepare
+  variables:
+    CMAKE_OPTIONS: -DENABLE_LDAP=ON
+    CMAKE_PRESET: raspberrypi-0-1
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_LINUX_BUILDS != null && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+  script:
+    # rootfs is not created here but mounted as a volume
+    # - /home/bc/raspios-create-rootfs.sh
+    - echo $RASPIOS_SYSROOT_PATH
+    - echo $RASPBERRY_PI_TOOLCHAIN_PATH
+    - echo $CMAKE_GENERATOR
+    - echo $DEFAULT_LINUX_CMAKE_OPTIONS
+    - echo $CMAKE_OPTIONS
+    - echo $CMAKE_SANITIZER_OPTIONS
+    - cmake --preset=$CMAKE_PRESET -B build/$CMAKE_PRESET -G "$CMAKE_GENERATOR" -DCMAKE_BUILD_TYPE=RelWithDebInfo $DEFAULT_LINUX_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS $CMAKE_SANITIZER_OPTIONS
+    - echo $ADDITIONAL_BUILD_OPTIONS
+    - cmake --build build/$CMAKE_PRESET --target install -- $ADDITIONAL_BUILD_OPTIONS
+    - echo $(git describe) > build/$CMAKE_PRESET/gitdescribe.txt
+  artifacts:
+    paths:
+      - build/$CMAKE_PRESET/gitdescribe.txt
+      - build/$CMAKE_PRESET/linphone-sdk/$CMAKE_PRESET/bin/*
+      - build/$CMAKE_PRESET/linphone-sdk/$CMAKE_PRESET/lib/*
+      - build/$CMAKE_PRESET/linphone-sdk/$CMAKE_PRESET/include/*
+      - build/$CMAKE_PRESET/linphone-sdk/$CMAKE_PRESET/share/*
+    expire_in: 1 day
+  needs:
+    - wait-cache-synchro-raspberrypi
+
+raspberrypi-0-1-ninja:
+
+  tags: [ "docker-raspberrypi" ]
+  image: !reference [.raspios_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CMAKE_PRESET: raspberrypi-0-1
+    RASPBERRY_PI_TOOLCHAIN_PATH: /home/bc/cross-pi-gcc-10.3.0-0
+  extends: .raspberrypi
+
+raspberrypi-2-3-ninja:
+
+  tags: [ "docker-raspberrypi" ]
+  image: !reference [.raspios_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CMAKE_PRESET: raspberrypi-2-3
+    RASPBERRY_PI_TOOLCHAIN_PATH: /home/bc/cross-pi-gcc-10.3.0-1
+  extends: .raspberrypi
+
+
+raspberrypi-3plus-ninja:
+
+  tags: [ "docker-raspberrypi" ]
+  image: !reference [.raspios_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CMAKE_PRESET: raspberrypi-3+
+    RASPBERRY_PI_TOOLCHAIN_PATH: /home/bc/cross-pi-gcc-10.3.0-2
+  extends: .raspberrypi

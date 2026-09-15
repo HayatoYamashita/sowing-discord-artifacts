@@ -1,0 +1,174 @@
+wait-cache-synchro-ubuntu2004:
+  extends: .wait-cache-synchro
+  variables:
+    BUILD_SUBTYPE: ubuntu2004
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SKIP_LINUX == null
+    - !reference [.wait-cache-synchro, rules]
+
+recache-ubuntu2004:
+  extends: .recache-update-cache
+  image: !reference [.ubuntu2004_image_version, image]
+
+#Build template to use in other job scripts without having to copy same code
+#format = .className: &referenceName
+#Use = "<< *referenceName" to use the template ("-*" in script)
+
+
+.factorize_ubuntu2004: &docker_image_platform_and_runner_tag
+  tags: [ "docker-test" ]
+  image: !reference [.ubuntu2004_image_version, image]
+  needs:
+    - ubuntu2004-ninja-gcc-tunnel-pq
+  variables:
+    PLATFORM: linux-ubuntu2004
+
+.factorize_ubuntu2004_s: &docker_image_platform_and_runner_tag_s
+  tags: [ "docker-sequential" ]
+  image: !reference [.ubuntu2004_image_version, image]
+  needs:
+    - ubuntu2004-ninja-gcc-tunnel-pq
+  variables:
+    PLATFORM: linux-ubuntu2004
+
+# "tags" is defined in tester extends (check linux-desktop.yml)
+.factorize_ubuntu2004_libl: &docker_image_platform_and_runner_tag_libl
+  image: !reference [.ubuntu2004_test_libl_image_version, image]
+  needs:
+    - ubuntu2004-ninja-gcc-tunnel-pq
+  variables:
+    PLATFORM: linux-ubuntu2004
+
+#################################################
+# Makefile
+#################################################
+
+ubuntu2004-makefile-clang:
+  tags: [ "docker-flat" ]
+  image: !reference [.ubuntu2004_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: clang
+    CXX: clang++
+    #Only used to overwrite value set by .set_parallel_level.yml
+    #ADDITIONAL_BUILD_OPTIONS: -j[jobs]
+  extends: .linux-desktop
+
+ubuntu2004-makefile-clang-pqc:
+  variables:
+    CMAKE_OPTIONS: -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON -DENABLE_LDAP=ON
+  extends: ubuntu2004-makefile-clang
+
+#################################################
+# Ninja
+#################################################
+
+ubuntu2004-ninja-gcc:
+  tags: [ "docker-flat" ]
+  image: !reference [.ubuntu2004_image_version, image]
+  variables:
+    GIT_FETCH_EXTRA_FLAGS: --tags --force --recurse-submodules=yes
+    GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8 --force --recursive
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_LINUX_BUILDS != null && $DOCKER_UPDATE == null && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+  variables:
+    CMAKE_OPTIONS: -DENABLE_DOC=ON -DENABLE_LDAP=ON -DENABLE_QT_GL=ON
+    CMAKE_GENERATOR: Ninja
+    CC: gcc
+    CXX: g++
+  before_script:
+    - !reference [.linux-prepare, before_script]
+    - eval "$(qtchooser -qt=5.15.2 -print-env)"
+    - export Qt5_DIR=${QTLIBDIR}/cmake/Qt5
+    - export PATH=${QTTOOLDIR}:$PATH
+  extends: .linux-desktop
+  needs:
+    - wait-cache-synchro-ubuntu2004
+
+ubuntu2004-ninja-gcc-pqc:
+  variables:
+    CMAKE_OPTIONS: -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON -DENABLE_LDAP=ON
+  extends: ubuntu2004-ninja-gcc
+
+ubuntu2004-ninja-gcc-smallsdk:
+  extends:
+    - ubuntu2004-ninja-gcc
+    - .smallsdk-cmake-options
+
+ubuntu2004-ninja-gcc-tunnel-pq:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_LINUX_BUILDS != null && $DOCKER_UPDATE == null && $SKIP_LINUX == null
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
+    CMAKE_OPTIONS: -DENABLE_LDAP=ON -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON -DENABLE_UNIT_TESTS=ON -DENABLE_TUNNEL=ON
+  extends: ubuntu2004-ninja-gcc
+
+#################################################
+# TESTS
+#################################################
+
+bctoolbox-ubuntu2004-test:
+  extends: .test-bctoolbox
+  <<: *docker_image_platform_and_runner_tag
+
+bellesip-ubuntu2004-test:
+  extends: .test-bellesip
+  <<: *docker_image_platform_and_runner_tag_s
+
+belr-ubuntu2004-test:
+  extends: .test-belr
+  <<: *docker_image_platform_and_runner_tag
+
+belcard-ubuntu2004-test:
+  extends: .test-belcard
+  <<: *docker_image_platform_and_runner_tag
+
+bzrtp-ubuntu2004-test:
+  extends: .test-bzrtp
+  <<: *docker_image_platform_and_runner_tag
+
+liblinphone-ubuntu2004-test:
+  extends: .test-liblinphone
+  <<: *docker_image_platform_and_runner_tag_libl
+
+liblinphone-ubuntu2004-test-tunnel-pq:
+  extends:
+    - .test-liblinphone-tunnel-pq
+  <<: *docker_image_platform_and_runner_tag_libl
+  needs:
+    - ubuntu2004-ninja-gcc-tunnel-pq
+
+liblinphone-ubuntu2004-test-shaky:
+  extends: .test-liblinphone-shaky
+  <<: *docker_image_platform_and_runner_tag_libl
+  needs:
+    - ubuntu2004-ninja-gcc-tunnel-pq
+
+# liblinphone-ubuntu2004-test-mr:
+#  extends: .test-liblinphone-mr
+#  <<: *docker_image_platform_and_runner_tag_libl
+
+# liblinphone-ubuntu2004-test-shaky-mr:
+#  extends: .test-liblinphone-shaky-mr
+#  <<: *docker_image_platform_and_runner_tag_libl
+
+liblinphone-ubuntu2004-test-force:
+  extends: .test-liblinphone
+  <<: *docker_image_platform_and_runner_tag_libl
+  rules:
+    - if: $ENABLE_TESTS_LIBLINPHONE != null
+
+mediastreamer-ubuntu2004-test:
+  extends: .test-mediastreamer
+  <<: *docker_image_platform_and_runner_tag_libl
+
+ortp-ubuntu2004-test:
+  extends: .test-ortp
+  <<: *docker_image_platform_and_runner_tag
+
+pqc-ubuntu2004-test:
+  extends: .test-pqc
+  <<: *docker_image_platform_and_runner_tag
+  needs:
+    - ubuntu2004-ninja-gcc-pqc

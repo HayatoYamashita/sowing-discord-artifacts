@@ -1,0 +1,143 @@
+[+] K_enc      = f7556807e4dff9824680f697d02a8e3d260eedd2b53aa11680e50715f5205dff
+[+] S_session  = f26069d09b9e7d8c5ec3b276
+[+] salt_SrtpMaster (14 B, zero-padded) = 2222222222222222222222220000
+[+] 12-byte vs 14-byte-zero-padded forms agree
+[+] nonce      = f2607be4cde6a321e02cb234  (per-packet)
+[+] determinism OK
+[+] K_enc      = f7556807e4dff9824680f697d02a8e3d260eedd2b53aa11680e50715f5205dff
+[+] S_session  = f26069d09b9e7d8c5ec3b276
+[+] salt_SrtpMaster (14 B, zero-padded) = 2222222222222222222222220000
+[+] 12-byte vs 14-byte-zero-padded forms agree
+[+] nonce      = f2607be4cde6a321e02cb234  (per-packet)
+[+] determinism OK
+[*] inner_master_key_OLD = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+[*] inner_master_key_NEW = ffeeddccbbaa99887766554433221100fedcba9876543210ffeeddccbbaa9988
+[*] master_salt (12 B)   = aabbccddeeff001122334455
+[*] SSRC, ROC, SEQ       = 0xdeadbeef, 0x00000007, 0x0042
+[*] plaintext  (44 B): b'adversary-chosen H.265 NAL bytes go here ...'
+
+[*] derived K_enc_OLD    = 043a488d7ec158f222611a4b5744c950d752f6bca5007cd2e2b2006e4b94eef9
+[*] derived K_enc_NEW    = 2b7f227a69d3b900ed26a0d22ab8680e83ec8bc50fc2a13d155bf9d760c2eb0d
+[*] derived nonce_OLD    = 0500b48aea5e0fd6b585efc6
+[*] derived nonce_NEW    = 088e58cdeb0bd96b6d84edb4
+[*] ciphertext  (64 B) = 47a17355b533f8f93a6b7f3d4e654f7080bc92a6c942a185caafc3c1fcc39d1ccca971f55f97e858fd50c1103ff8576d690e8931580b7d882e33320d88d96696
+[*] tag (16 B)           = ca8421b22d9591bf1b33bf0aff37f1b9
+
+[+] verify under (K_OLD, nonce_OLD): PASS  recovered=b'adversary-chosen H.265 NAL bytes go here ...' (match)
+[+] verify under (K_NEW, nonce_NEW): PASS  first 16 B = 7e081028c1a6afe6e814750e966618b4  (differs from OLD: True)
+
+[*] OK: per-packet ambiguous ciphertext authenticates under both SRTP-derived (K_enc, nonce) pairs.
+[+] CC=0 header: 12 B = 8060002adeadbeefcafebabe
+[+] CC=2 header: 20 B = 8260002adeadbeefcafebabe1111111122222222
+[+] CC=15 header: 72 B = 8f60002adeadbeefcafebabe100000001000000110000002100000031000000410000005100000061000000710000008100000091000000a1000000b1000000c1000000d1000000e
+[*] OK
+[
+  {
+    "name": "v1_1blk_cc0_adj0",
+    "master_key_old": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "master_key_new": "ffeeddccbbaa99887766554433221100fedcba9876543210ffeeddccbbaa9988",
+    "master_salt": "aabbccddeeff001122334455",
+    "ssrc": 3735928559,
+    "roc": 7,
+    "seq": 66,
+    "aad": "80600042deadbeefdeadbeef",
+    "plaintext": "abababababababababababababababab",
+    "adjustment_offset": 0,
+    "expected_ciphertext": "de5639b1bf1e473cb5de10db930aacff",
+    "expected_tag": "a60f85f2cc8b62212746318515f2ab2c",
+    "K_enc_old": "043a488d7ec158f222611a4b5744c950d752f6bca5007cd2e2b2006e4b94eef9",
+    "K_enc_new": "2b7f227a69d3b900ed26a0d22ab8680e83ec8bc50fc2a13d155bf9d760c2eb0d",
+    "nonce_old": "0500b48aea5e0fd6b585efc6",
+    "nonce_new": "088e58cdeb0bd96b6d84edb4"
+  },
+  {
+    "name": "v2_2blk_cc1_adj1",
+    "master_key_old": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "master_key_new": "ffeeddccbbaa99887766554433221100fedcba9876543210ffeeddccbbaa9988",
+    "master_salt": "aabbccddeeff001122334455",
+    "ssrc": 3735928559,
+    "roc": 7,
+    "seq": 256,
+    "aad": "81600100cafebabedeadbeef10000001",
+    "plaintext": "1111111111111111111111111111111122222222222222222222222222222222",
+    "adjustment_offset": 16,
+    "expected_ciphertext": "baf0e91a4df3fb948c9efcad31851a80b0a116512e27d926a5fa1cedaae37a1c",
+    "expected_tag": "53cb139a27f718bb3996679113167dae",
+    "K_enc_old": "043a488d7ec158f222611a4b5744c950d752f6bca5007cd2e2b2006e4b94eef9",
+    "K_enc_new": "2b7f227a69d3b900ed26a0d22ab8680e83ec8bc50fc2a13d155bf9d760c2eb0d",
+    "nonce_old": "0500b48aea5e0fd6b585ee84",
+    "nonce_new": "088e58cdeb0bd96b6d84ecf6"
+  },
+  {
+    "name": "v3_5blk_cc2_adj2",
+    "master_key_old": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "master_key_new": "ffeeddccbbaa99887766554433221100fedcba9876543210ffeeddccbbaa9988",
+    "master_salt": "aabbccddeeff001122334455",
+    "ssrc": 3735928559,
+    "roc": 7,
+    "seq": 4660,
+    "aad": "8260123412345678deadbeef1000000110000002",
+    "plaintext": "3030303030303030303030303030303031313131313131313131313131313131323232323232323232323232323232323333333333333333333333333333333334343434343434343434343434343434",
+    "adjustment_offset": 32,
+    "expected_ciphertext": "fc473d7e1898b6bd611e09fac202894ad12cfd7b201978262b90c1500adf0dea11205ca1a09606761e699f3cdf8adc59136c22dbb251c9633debde885710db3c2cbe8a0c15daa538f1adaf477c417294",
+    "expected_tag": "41d614cf5242fb61a4cb8a75f18880f7",
+    "K_enc_old": "043a488d7ec158f222611a4b5744c950d752f6bca5007cd2e2b2006e4b94eef9",
+    "K_enc_new": "2b7f227a69d3b900ed26a0d22ab8680e83ec8bc50fc2a13d155bf9d760c2eb0d",
+    "nonce_old": "0500b48aea5e0fd6b585fdb0",
+    "nonce_new": "088e58cdeb0bd96b6d84ffc2"
+  },
+  {
+    "name": "v4_13blk_cc3_adj_last",
+    "master_key_old": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "master_key_new": "ffeeddccbbaa99887766554433221100fedcba9876543210ffeeddccbbaa9988",
+    "master_salt": "aabbccddeeff001122334455",
+    "ssrc": 3735928559,
+    "roc": 7,
+    "seq": 65534,
+    "aad": "8360fffe12345678deadbeef100000011000000210000003",
+    "plaintext": "404040404040404040404040404040404141414141414141414141414141414142424242424242424242424242424242434343434343434343434343434343434444444444444444444444444444444445454545454545454545454545454545464646464646464646464646464646464747474747474747474747474747474748484848484848484848484848484848494949494949494949494949494949494a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c",
+    "adjustment_offset": 192,
+    "expected_ciphertext": "21ae3418b8eabdfc5e7b1af1ea46716f54cb9678f6c69f4a7005b063900fd3be30f7463bc3c4c6b503c3d41aa314b7cea77eae7dd7c04b5a60af6acbf98bc919e709f59d9b6e1a62963780ce662887f67dfdcb48e1e2e1c102708e7023c863504f46d4ad5dfbfcd433e597e04f0680bc79270f3ec09533e604eaad155e558bffcf7329c1f5f0ff86a47f1acc1870613601d0522fdaed0e3aa49b2b0221f193d647d04f6c7beb4d5ac9172fbd85954caf4cef35c284b278a8da95f9221b917658ace2397d406c25f1e4efc43a83dc12fa",
+    "expected_tag": "309ceb2e44907c1de049400838e90309",
+    "K_enc_old": "043a488d7ec158f222611a4b5744c950d752f6bca5007cd2e2b2006e4b94eef9",
+    "K_enc_new": "2b7f227a69d3b900ed26a0d22ab8680e83ec8bc50fc2a13d155bf9d760c2eb0d",
+    "nonce_old": "0500b48aea5e0fd6b585107a",
+    "nonce_new": "088e58cdeb0bd96b6d841208"
+  },
+  {
+    "name": "v5_3blk_no_aad_adj0",
+    "master_key_old": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "master_key_new": "ffeeddccbbaa99887766554433221100fedcba9876543210ffeeddccbbaa9988",
+    "master_salt": "aabbccddeeff001122334455",
+    "ssrc": 3735928559,
+    "roc": 7,
+    "seq": 170,
+    "aad": "",
+    "plaintext": "555555555555555555555555555555556666666666666666666666666666666677777777777777777777777777777777",
+    "adjustment_offset": 0,
+    "expected_ciphertext": "cb912412df01d8969af1f0888ce7cc1ad9d7fe25f311003c727a506f131ccd92fa613d87fc9a6c611a2d5c206c86ee72",
+    "expected_tag": "bf21b1a0476694746846fa653f1207f5",
+    "K_enc_old": "043a488d7ec158f222611a4b5744c950d752f6bca5007cd2e2b2006e4b94eef9",
+    "K_enc_new": "2b7f227a69d3b900ed26a0d22ab8680e83ec8bc50fc2a13d155bf9d760c2eb0d",
+    "nonce_old": "0500b48aea5e0fd6b585ef2e",
+    "nonce_new": "088e58cdeb0bd96b6d84ed5c"
+  },
+  {
+    "name": "v6_2blk_high_roc",
+    "master_key_old": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "master_key_new": "ffeeddccbbaa99887766554433221100fedcba9876543210ffeeddccbbaa9988",
+    "master_salt": "aabbccddeeff001122334455",
+    "ssrc": 3735928559,
+    "roc": 305419896,
+    "seq": 7,
+    "aad": "80600007deadbeefdeadbeef",
+    "plaintext": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "adjustment_offset": 16,
+    "expected_ciphertext": "abe0492c9fdde8160cd3b090b8b500e7eef44878feee00d240c7fa16edc23b19",
+    "expected_tag": "76c7caa473ee5c4638fb34ec3937c237",
+    "K_enc_old": "043a488d7ec158f222611a4b5744c950d752f6bca5007cd2e2b2006e4b94eef9",
+    "K_enc_new": "2b7f227a69d3b900ed26a0d22ab8680e83ec8bc50fc2a13d155bf9d760c2eb0d",
+    "nonce_old": "0500b48aea5e1de2e3faef83",
+    "nonce_new": "088e58cdeb0bcb5f3bfbedf1"
+  }
+]

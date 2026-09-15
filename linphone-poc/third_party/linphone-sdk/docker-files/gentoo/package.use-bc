@@ -1,0 +1,11 @@
+dev-db/soci sqlite -test
+
+app-text/doxygen dot
+media-libs/gd fontconfig truetype
+media-libs/libglvnd X
+media-libs/libpulse X
+media-plugins/alsa-plugins pulseaudio
+media-sound/pulseaudio daemon
+net-dns/avahi mdnsresponder-compat
+net-libs/libsrtp openssl
+sys-auth/pambase elogind

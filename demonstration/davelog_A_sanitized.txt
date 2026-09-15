@@ -1,0 +1,137 @@
+[t+00.000s] sentry.js:15 [UnifiedConnection(default)] Renegotiating: User left: U_1
+[t+00.027s] sentry.js:15 [UnifiedConnection(default)] Creating user: U_2 with audio SSRC: <ssrc> and video SSRCs: <ssrc>
+[t+00.028s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_1, expiry: 10
+[t+00.056s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+00.193s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+00.194s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 33
+[t+00.250s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 10
+[t+00.251s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_2, expiry: 10
+[t+00.252s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_3, expiry: 10
+[t+00.299s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 33
+[t+00.300s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}
+[t+05.887s] sentry.js:15 [UnifiedConnection(default)] Attempting to create user U_1 with 0 audio SSRC
+[t+05.887s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_4, expiry: 10
+[t+06.310s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+06.411s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+06.412s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 34
+[t+06.446s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 11
+[t+06.447s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_5, expiry: 10
+[t+06.448s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_6, expiry: 10
+[t+06.448s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_7, expiry: 10
+[t+06.466s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 34
+[t+06.467s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}
+[t+16.958s] sentry.js:15 [UnifiedConnection(default)] Creating user: U_2 with audio SSRC: <ssrc> and video SSRCs: <ssrc>
+[t+16.958s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_8, expiry: 10
+[t+16.961s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+17.089s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+17.093s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 35
+[t+17.156s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 12
+[t+17.157s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_1, expiry: 10
+[t+17.157s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_3, expiry: 10
+[t+17.219s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 35
+[t+17.219s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}
+[t+26.565s] sentry.js:15 [UnifiedConnection(default)] Attempting to create user U_1 with 0 audio SSRC
+[t+26.566s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_9, expiry: 10
+[t+27.005s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+27.123s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+27.124s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 36
+[t+27.158s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 13
+[t+27.159s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_10, expiry: 10
+[t+27.159s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_11, expiry: 10
+[t+27.160s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_12, expiry: 10
+[t+27.180s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 36
+[t+27.181s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}
+[t+33.777s] sentry.js:15 [UnifiedConnection(default)] Creating user: U_2 with audio SSRC: <ssrc> and video SSRCs: <ssrc>
+[t+33.777s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_13, expiry: 10
+[t+33.780s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+33.908s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+33.911s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 37
+[t+33.972s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 14
+[t+33.974s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_14, expiry: 10
+[t+33.974s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_15, expiry: 10
+[t+34.070s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 37
+[t+34.075s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}
+[t+41.516s] sentry.js:15 [UnifiedConnection(default)] Attempting to create user U_1 with 0 audio SSRC
+[t+41.516s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_16, expiry: 10
+[t+41.938s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+42.045s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+42.046s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 38
+[t+42.083s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 15
+[t+42.084s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_17, expiry: 10
+[t+42.084s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_18, expiry: 10
+[t+42.084s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_19, expiry: 10
+[t+42.100s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 38
+[t+42.101s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}
+[t+49.637s] sentry.js:15 [UnifiedConnection(default)] Creating user: U_2 with audio SSRC: <ssrc> and video SSRCs: <ssrc>
+[t+49.637s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_20, expiry: 10
+[t+49.639s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+49.781s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+49.783s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 39
+[t+49.846s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 16
+[t+49.847s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_21, expiry: 10
+[t+49.848s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_22, expiry: 10
+[t+49.866s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 39
+[t+49.866s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}
+[t+57.160s] sentry.js:15 [UnifiedConnection(default)] Attempting to create user U_1 with 0 audio SSRC
+[t+57.160s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_23, expiry: 10
+[t+57.588s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+57.690s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+57.691s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 40
+[t+57.726s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 17
+[t+57.727s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_24, expiry: 10
+[t+57.727s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_25, expiry: 10
+[t+57.727s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_26, expiry: 10
+[t+57.745s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 40
+[t+57.746s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}
+[t+64.881s] sentry.js:15 [UnifiedConnection(default)] Creating user: U_2 with audio SSRC: <ssrc> and video SSRCs: <ssrc>
+[t+64.881s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_27, expiry: 10
+[t+64.884s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+65.015s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+65.017s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 41
+[t+65.079s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 18
+[t+65.080s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_28, expiry: 10
+[t+65.081s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_29, expiry: 10
+[t+65.150s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 41
+[t+65.151s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}
+[t+71.697s] sentry.js:15 [UnifiedConnection(default)] Attempting to create user U_1 with 0 audio SSRC
+[t+71.697s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_30, expiry: 10
+[t+72.126s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+72.235s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+72.236s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 42
+[t+72.271s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 19
+[t+72.272s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_31, expiry: 10
+[t+72.273s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_32, expiry: 10
+[t+72.273s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_33, expiry: 10
+[t+72.293s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 42
+[t+72.433s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}
+[t+79.088s] sentry.js:15 [UnifiedConnection(default)] Creating user: U_2 with audio SSRC: <ssrc> and video SSRCs: <ssrc>
+[t+79.088s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_34, expiry: 10
+[t+79.091s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+79.219s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+79.221s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 43
+[t+79.284s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 20
+[t+79.286s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_35, expiry: 10
+[t+79.286s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_36, expiry: 10
+[t+79.348s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 43
+[t+79.349s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}
+[t+87.772s] sentry.js:15 [UnifiedConnection(default)] Attempting to create user U_1 with 0 audio SSRC
+[t+87.773s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_37, expiry: 10
+[t+88.199s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+88.300s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+88.301s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 44
+[t+88.334s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 21
+[t+88.335s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_38, expiry: 10
+[t+88.336s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_39, expiry: 10
+[t+88.336s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_40, expiry: 10
+[t+88.354s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 44
+[t+88.355s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}
+[t+94.201s] sentry.js:15 [UnifiedConnection(default)] Creating user: U_2 with audio SSRC: <ssrc> and video SSRCs: <ssrc>
+[t+94.201s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_41, expiry: 10
+[t+94.204s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS proposals
+[t+94.333s] sentry.js:15 [RTCConnection(C_1, default)] Sending MLS commit welcome message
+[t+94.335s] sentry.js:15 [RTCConnection(C_1, default)] Received MLS commit for transition ID 45
+[t+94.397s] sentry.js:15 (session.cpp:386) Successfully processed MLS commit, updating state; our leaf index is 1; current epoch is 22
+[t+94.398s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_42, expiry: 10
+[t+94.398s] media.js:1 (decryptor.cpp:22) Transitioning to new key ratchet: R_43, expiry: 10
+[t+94.456s] sentry.js:15 [RTCConnection(C_1, default)] Executing DAVE protocol transition: 45
+[t+94.457s] sentry.js:15 [DaveSessionManager] DAVE protocol state update: {"version":1,"epochAuthenticator":"<redacted>"}

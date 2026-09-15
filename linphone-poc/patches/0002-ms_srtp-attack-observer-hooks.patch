@@ -1,0 +1,143 @@
+Subject: [PATCH] ms_srtp: add attack observer hooks for PoC of paper
+ "Sowing Discord: Exploiting the Lack of Key Commitment in E2EE Group RTC" (§5.4)
+
+Base: upstream linphone-sdk commit 7d5fe98a18ff7be2381656b600f880e3c49f5089
+      (master, 2025-12-23), vendored under third_party/linphone-sdk/.
+
+This patch is applied automatically by poc-linphone/scripts/build_linphone_sdk.sh
+before configuring the SDK build, and reverted after the build completes. The
+linphone-sdk source tree is otherwise untouched.
+
+Why this patch exists
+=====================
+
+The PoC's attack hook (poc-linphone/attack/hook/libattack_hook.dylib) needs to
+catch two events inside libmediastreamer2:
+
+  (i)  inner SRTP master-key changes  — to populate the (K_old, K_new) sliding
+       window the GHASH-collision math depends on, and
+  (ii) inner srtp_protect on outgoing video packets — to overwrite the wire
+       bytes with the ambiguous (ciphertext, tag) the paper §5.4 attack
+       produces.
+
+DYLD_INSERT_LIBRARIES + __interpose can only redirect symbol bindings that
+resolve through the dynamic linker. Linphone's mediastreamer2 statically links
+libsrtp2 into its dylib, so the internal calls (ms_srtp.cpp -> srtp_create /
+srtp_protect / ms_media_stream_sessions_set_srtp_inner_send_key) become direct
+branches at link time and are NOT interposable. We need a hook point inside
+the library itself.
+
+What the hook does
+==================
+
+Adds two file-scope observer slots and one MS2_PUBLIC setter for each, with
+no behavioural change in the absence of a registered observer:
+
+  ms_attack_set_inner_send_key_observer(fn)
+      fn is called just before each ms_media_stream_sessions_set_srtp_inner_send_key
+      invocation inside ms_media_stream_generate_and_set_srtp_keys_for_ekt.
+      Arguments: (sessions, suite, key, key_length, source).
+
+  ms_attack_set_inner_protect_substitution(fn)
+      fn is called immediately AFTER each inner srtp_protect() inside
+      ms_srtp_send_protect_inner (both the synthetic-packet path for
+      extension-bearing RTP and the in-place path for plain RTP). The
+      observer can read the freshly-encrypted packet and may overwrite
+      bytes 12..(len-16) (ciphertext) and the trailing 16 bytes (tag),
+      and may update *len_in_out to a smaller value (e.g. round-down to
+      a 16-byte block boundary). Arguments:
+        (inner_srtp_session, packet_buf, len_in_out).
+      Return value is reserved; non-zero values are currently ignored.
+
+The PoC's libattack_hook.dylib resolves these setters via dlsym at ctor time
+and skips registration silently if the patch was not applied — the host
+process then behaves like stock Linphone. That keeps the patch perfectly
+isolated to the PoC build line; the SDK builds fine without it.
+
+Why expose via setter + dlsym instead of a direct extern
+========================================================
+
+The setter pattern keeps the SDK side header-clean (no PoC-specific
+declarations leak into ms_srtp.h, which would be a real-world API change).
+dlsym from the hook's ctor gracefully degrades to "no observer" if the
+patch was not applied or the symbol was renamed.
+
+
+
+---
+ mediastreamer2/src/crypto/ms_srtp.cpp | 43 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)
+
+diff --git a/mediastreamer2/src/crypto/ms_srtp.cpp b/mediastreamer2/src/crypto/ms_srtp.cpp
+index a20e6e4690..be09ad92e8 100644
+--- a/mediastreamer2/src/crypto/ms_srtp.cpp
++++ b/mediastreamer2/src/crypto/ms_srtp.cpp
+@@ -239,6 +239,29 @@
+ };
+ } // anonymous namespace
+ 
++/* === Attack observer hooks (PoC patch) ===================================
++ * See poc-linphone/patches/0002-ms_srtp-attack-observer-hooks.patch for
++ * the rationale. These slots are NULL in stock builds; libattack_hook.dylib
++ * registers callbacks at ctor time via dlsym. */
++extern "C" {
++typedef void (*ms_attack_inner_send_key_observer_fn)(void *sessions,
++                                                     int suite,
++                                                     const uint8_t *key,
++                                                     size_t key_length,
++                                                     int source);
++typedef int (*ms_attack_inner_protect_substitution_fn)(void *inner_srtp,
++                                                       uint8_t *packet,
++                                                       int *len_in_out);
++static volatile ms_attack_inner_send_key_observer_fn g_attack_inner_send_key_obs = NULL;
++static volatile ms_attack_inner_protect_substitution_fn g_attack_inner_protect_sub = NULL;
++MS2_PUBLIC void ms_attack_set_inner_send_key_observer(ms_attack_inner_send_key_observer_fn fn) {
++	g_attack_inner_send_key_obs = fn;
++}
++MS2_PUBLIC void ms_attack_set_inner_protect_substitution(ms_attack_inner_protect_substitution_fn fn) {
++	g_attack_inner_protect_sub = fn;
++}
++} // extern "C"
++
+ struct _MSSrtpCtx {
+ 	bctoolbox::RNG mRNG;           /**< EKT needs a RNG to be able to generate srtp master key */
+ 	MSSrtpSendStreamContext mSend; /**< The context used to protect outgoing packets, is always using any_outbound mode
+@@ -650,6 +673,11 @@
+ 					ms_warning("srtp_protect inner encryption failed (%d) for stream ctx [%p]", err, ctx);
+ 					ms_free(synthetic);
+ 					return -1;
++				}
++				/* PoC attack observer hook (synthetic-packet path). */
++				{
++					ms_attack_inner_protect_substitution_fn sub = g_attack_inner_protect_sub;
++					if (sub) sub(ctx->mInnerSrtp, synthetic, &synthetic_len);
+ 				}
+ 
+ 				/* put it back in the original one */
+@@ -664,6 +692,11 @@
+ 				if (err != err_status_ok) {
+ 					ms_warning("srtp_protect inner encryption failed (%d) for stream ctx [%p]", err, ctx);
+ 					return -1;
++				}
++				/* PoC attack observer hook (in-place path). */
++				{
++					ms_attack_inner_protect_substitution_fn sub = g_attack_inner_protect_sub;
++					if (sub) sub(ctx->mInnerSrtp, m->b_rptr, &slen);
+ 				}
+ 			}
+ 			m->b_rptr[slen] = 0x00; /* the emtpy OHB */
+@@ -1359,6 +1392,14 @@
+ 	memcpy(salted_key + master_key_size, ekt->mSrtpMasterSalt.data(),
+ 	       ekt->mSrtpMasterSalt.size()); // append the master salt after the key
+ 
++	/* PoC attack observer hook (inner send key capture). */
++	{
++		ms_attack_inner_send_key_observer_fn obs = g_attack_inner_send_key_obs;
++		if (obs) {
++			obs(sessions, ekt->mSrtpCryptoSuite, salted_key,
++			    master_key_size + ekt->mSrtpMasterSalt.size(), MSSrtpKeySourceEKT);
++		}
++	}
+ 	// Set these keys in the current srtp context
+ 	ms_media_stream_sessions_set_srtp_inner_send_key(sessions, ekt->mSrtpCryptoSuite, salted_key,
+ 	                                                 master_key_size + ekt->mSrtpMasterSalt.size(), MSSrtpKeySourceEKT);

@@ -1,0 +1,18 @@
+# Optional Linphone factory rc. Pass with `--rc-path conf/linphonerc.example`.
+# Most settings are also reachable via the Python API; this file is a
+# convenient place to drop SDK defaults you want to lock in.
+
+[sip]
+default_proxy=0
+ping_with_options=0
+
+[net]
+mtu=1300
+
+[video]
+size=vga
+fps=30
+max_bandwidth=2048
+
+[sound]
+echocancellation=0

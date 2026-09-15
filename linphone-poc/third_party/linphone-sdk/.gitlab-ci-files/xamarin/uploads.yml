@@ -1,0 +1,22 @@
+nuget-upload-xamarin:
+  stage: deploy
+  tags: [ "macos-xcode15-flat" ]
+
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $DEPLOY_RUN_NUGET != null
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $UPLOAD_XAMARIN != null
+
+  variables:
+    GIT_STRATEGY: none # We don't need sources for this job.
+
+  needs:
+    - job: xamarin-package
+
+  before_script:
+    - nuget sources Add -Name gitlab -Source "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/nuget/index.json" -UserName gitlab-ci-token -Password $CI_JOB_TOKEN -StorePasswordInClearText
+
+  script:
+    - nuget push "build-nuget/nuget/packages/*.nupkg" -Source gitlab
+
+  after_script:
+    - nuget sources Remove -Name gitlab

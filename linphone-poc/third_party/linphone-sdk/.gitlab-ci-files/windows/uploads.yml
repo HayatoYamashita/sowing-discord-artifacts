@@ -1,0 +1,114 @@
+# batch nightmare to set the output of a command in a variable
+# .check_snapshot_or_release_windows: &check_snapshot_or_release_windows |
+#   SET DEPLOY_ROOT_DIRECTORY=%DEPLOY_RELEASES_DIRECTORY%
+#   FOR /F "tokens=*" %%i IN ('git -C liblinphone describe') DO SET describe=%%i
+#   FOR /F "tokens=*" %%i IN ('powershell "'%describe%' -match 'alpha|beta'"') DO SET describe_check=%%i
+#   if %describe_check% == True SET DEPLOY_ROOT_DIRECTORY=%DEPLOY_SNAPSHOTS_ROOT_DIRECTORY%
+#   echo %DEPLOY_ROOT_DIRECTORY%
+
+.check_snapshot_or_release_windows: &check_snapshot_or_release_windows |
+  Set-Variable -Name "PATH_TEMP" -Value $DEPLOY_RELEASES_DIRECTORY
+  echo "Temp_path_before_check=$PATH_TEMP"
+  Set-Variable -Name "describe" -Value $(git -C liblinphone describe)
+  echo "Liblinphone_version=$describe"
+  Set-Variable -Name "describe_check" -Value $($describe -match 'alpha|beta')
+  echo "does_describe_match_alpha_beta=$describe_check"
+  If ($describe_check -eq $true) {Set-Variable -Name "DEPLOY_ROOT_DIRECTORY" -Value $DEPLOY_SNAPSHOTS_ROOT_DIRECTORY}
+  Else {Set-Variable -Name "DEPLOY_ROOT_DIRECTORY" -Value $DEPLOY_RELEASES_DIRECTORY}
+  echo "upload_directory=$DEPLOY_ROOT_DIRECTORY"
+
+
+vs2022-win3264-windows-upload:
+  stage: deploy
+  tags: [ "windows-powershell-rack-flat"]
+
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $DEPLOY_RUN_WINDOWS != null
+  variables:
+    DEPLOY_DEST_DIR_SDK_WINDOWS: "windows/sdk"
+    GIT_FETCH_EXTRA_FLAGS: --tags --force --recurse-submodules=yes
+    GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8 --force --recursive
+  needs:
+    - vs2022-win3264-scheduled-windows
+  script:
+    - *check_snapshot_or_release_windows
+    # We are forced to use brakets, otherwize powershell will resolve ':' as part of a drive letter
+    - scp build/win/linphone-sdk-*.zip ${DEPLOY_SERVER}:${DEPLOY_ROOT_DIRECTORY}/${DEPLOY_DEST_DIR_SDK_WINDOWS}/
+
+
+
+#################################################
+# Windows (C#) doc upload
+#################################################
+
+cs-doc-windows-upload:
+  stage: deploy
+  tags: [ "windows-powershell-rack-flat"]
+
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $UPLOAD_CS_DOC != null && $SKIP_DEPLOY == null
+
+  needs:
+    - vs2022-win3264-scheduled-windows
+  script:
+    # Getting the version number to push the right version of the doc
+    - echo $CI_PROJECT_DIR
+    # We parse the file build/win/linphone-sdk/win32/share/version.txt to populate variables based on file "key=value" entries
+    # - for /f "delims== tokens=1,2" %%G in (build/win/linphone-sdk/win32/share/version.txt) do set %%G=%%H
+    - |
+        Get-Content build/win/linphone-sdk/win32/share/version.txt | Foreach-Object {
+          $var = $_.Split('=')
+          New-Variable -Name $var[0] -Value $var[1]
+        }
+    - Set-Variable -Name "UPLOAD_ROOT_DIRECTORY" -Value $DEPLOY_RELEASES_DIRECTORY
+    - If ($LINPHONESDK_STATE -eq "snapshots") { Set-Variable -Name "UPLOAD_ROOT_DIRECTORY" -Value $DEPLOY_SNAPSHOTS_ROOT_DIRECTORY }
+    - echo $LINPHONESDK_STATE
+    - echo $LINPHONE_VERSION
+    - echo $STRIPPED_LINPHONE_VERSION
+    - echo $DEPLOY_SERVER
+    - echo $UPLOAD_ROOT_DIRECTORY
+    - ssh $DEPLOY_SERVER mkdir -p $UPLOAD_ROOT_DIRECTORY/docs/liblinphone/$STRIPPED_LINPHONE_VERSION/cs
+    # We are forced to use brakets, otherwize powershell will resolve ':' as part of a drive letter
+    - scp -pr build/win/linphone-sdk/win32/share/doc/liblinphone-$LINPHONE_VERSION/cs/* ${DEPLOY_SERVER}:${UPLOAD_ROOT_DIRECTORY}/docs/liblinphone/${STRIPPED_LINPHONE_VERSION}/cs
+    # Workaround for directories into generated documentation, that do not have correct executable permission.
+    - ssh $DEPLOY_SERVER "chmod -R 755 ``find ${UPLOAD_ROOT_DIRECTORY}/docs/liblinphone/${STRIPPED_LINPHONE_VERSION}/cs -type d``"
+
+nuget-upload-windows:
+   extends: nuget-upload-xamarin
+
+   rules:
+     - if: $CI_PIPELINE_SOURCE == "schedule" && $DEPLOY_RUN_NUGET != null
+     - if: $CI_PIPELINE_SOURCE == "schedule" && $DEPLOY_RUN_WINDOWS != null
+
+   needs:
+     - job: vs2022-nuget-windows-package
+
+   script:
+     - nuget push "build/linphone-sdk/packages/*.nupkg" -Source gitlab
+
+#################################################
+# Java/Maven artifact upload
+#################################################
+
+.vs-java-windows-upload:
+  stage: deploy
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $DEPLOY_RUN_MAVEN_JAVA != null
+  variables:
+    GIT_STRATEGY: fetch
+    MAVEN_REPO_URL: $ANDROID_MAVEN_URL
+  script:
+    - cd build-java-wrapper
+    - If ( Test-Path -Path "maven_repository/org/linphone/" ) {Remove-Item -recurse -force -path "maven_repository/org/linphone/" }
+    - mkdir maven_repository/org/linphone/
+    - echo $MAVEN_REPO_URL
+    - rsync -avzP -verbose --progress -e "ssh -v $CUSTOM_SSH_WINDOWS_PARAM" --exclude "*.jar" $MAVEN_REPO_URL/org/linphone/linphone-sdk maven_repository/org/linphone/
+    - echo $GRADLE_OPTIONS
+    - ../cmake/Java/gradlew.bat -b upload.gradle publish $GRADLE_OPTIONS
+    - rsync -avzP -verbose --progress -e "ssh -v $CUSTOM_SSH_WINDOWS_PARAM" ./maven_repository/org/linphone/linphone-sdk $MAVEN_REPO_URL/org/linphone/
+
+vs2022-java-windows-upload:
+  extends: .vs-java-windows-upload
+  tags: [ "windows-powershell-vs-17-2022-flat" ]
+  needs: 
+    - job: vs2022-java-windows-package

@@ -1,0 +1,17 @@
+# Frozen build-time Python dependencies for the linphone-sdk Python
+# wrapper.  Pinned to the versions used during the in-vivo verification
+# of this artifact (macOS 15.5, Apple Silicon, 2026-06).
+#
+# The build script installs into a project-local venv at build/venv/
+# (created by scripts/build_linphone_sdk.sh on first run); reviewers
+# do NOT need to install these into a system Python.
+#
+# All packages here are pip-installable wheels with no native compile
+# steps, so the versions ought to remain installable for years even
+# if their authors keep publishing newer releases.
+
+cython==3.2.5
+wheel==0.47.0
+pdoc==16.0.0
+pystache==0.6.8
+six==1.17.0

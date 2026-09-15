@@ -1,0 +1,298 @@
+.ios:
+
+  extends: .job-prepare
+  stage: build
+  tags: [ "macos-xcode15-flat" ]
+
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_IOS_BUILDS != null
+
+  variables:
+    CMAKE_PRESET: ios-sdk
+
+  before_script:
+    - export CCACHE_BASEDIR=${PWD}
+    - export CCACHE_DIR=~/Library/Preferences/ccache-linphone-sdk-master
+    - ccache -s --verbose
+
+    # We clean the cache stats because it is our only way to see the cache stats per job run (one cleaner way would be to store in a file a do the delta by hand)
+    - ccache -z
+    - ccache -s --verbose
+
+  after_script:
+    #Mandatory to specify it to show accurate stats, as variable export is not kept between before_script/script and after script
+    - export CCACHE_DIR=~/Library/Preferences/ccache-linphone-sdk-master
+    - ccache -s --verbose
+
+  script:
+    - !reference [.set-max-jobs-unix, script]
+    - if [ -d "build" ]; then rm -rf build; fi;
+    - echo $IOS_DEPLOY_URL
+    - echo $CMAKE_GENERATOR
+    - echo $ARCHS_OPTIONS
+    - echo $CMAKE_OPTIONS
+    - echo $CCACHE_CONFIGPATH
+    - echo cmake --preset=$CMAKE_PRESET -B build/ios -G "$CMAKE_GENERATOR" $CMAKE_BUILD_TYPE -DLINPHONESDK_IOS_ARCHS="$ARCHS_OPTIONS" $UPLOAD_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS
+    - cmake --preset=$CMAKE_PRESET -B build/ios -G "$CMAKE_GENERATOR" $CMAKE_BUILD_TYPE -DLINPHONESDK_IOS_ARCHS="$ARCHS_OPTIONS" $UPLOAD_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS
+    - echo $ADDITIONAL_BUILD_OPTIONS
+    - echo $ADDITIONAL_BUILD_CONFIGURATIONS
+    - cmake --build build/ios $ADDITIONAL_BUILD_CONFIGURATIONS -- $ADDITIONAL_BUILD_OPTIONS
+    - zip -r tester/IOS/swift/LinphoneTester.zip tester/IOS/swift/linphoneTester
+    # Get SDK version from cached cmake variables
+    - cd build/ios
+    - cat CMakeCache.txt | grep LINPHONESDK_VERSION_CACHED | cut -d "=" -f2 > linphonesdkversion.txt
+    - cat linphonesdkversion.txt
+    - echo $(git describe) > gitdescribe.txt
+
+  artifacts:
+    paths:
+      - build/ios/gitdescribe.txt
+      - build/ios/linphonesdkversion.txt
+      - build/ios/linphone-sdk-*.zip
+      - build/ios/*.podspec
+      - build/ios/docs
+      - tester/IOS/LinphoneTester/Podfile
+      - tester/IOS/swift/LinphoneTester.zip
+      - build/ios/linphone-sdk-swift-ios
+
+    when: always
+    expire_in: 1 day
+
+
+#################################################
+# Makefile
+#################################################
+
+
+ios-makefile:
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $ALL_IOS_BUILDS != null
+    - if: $DEPLOY_IOS != null
+    - if: $DEPLOY_RUN_NUGET != null
+    - if: $UPLOAD_XAMARIN != null
+    - if: $ENABLE_IOS_TESTS != null
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CMAKE_OPTIONS: -DENABLE_SWIFT_WRAPPER=ON -DENABLE_CSHARP_WRAPPER=ON -DENABLE_DOC=ON -DENABLE_UNIT_TESTS=ON
+    #Only used to overwrite value set by .set_parallel_level.yml
+    #ADDITIONAL_BUILD_OPTIONS: -j[jobs]
+    ARCHS_OPTIONS: "arm64,x86_64"
+    CMAKE_BUILD_TYPE: -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    ADDITIONAL_BUILD_CONFIGURATIONS: -j $MAX_NUMBER_TASK
+    GIT_FETCH_EXTRA_FLAGS: --tags --force --recurse-submodules=yes
+    GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8 --force --recursive
+  script:
+    - DESCRIBE=$(git -C liblinphone describe)
+    - echo $DESCRIBE
+    - !reference [.choose_url_ios, script]
+    - UPLOAD_CMAKE_OPTIONS="-DLINPHONESDK_IOS_BASE_URL=${IOS_URL}"
+    - !reference [.ios, script]
+  extends: .ios
+
+
+#################################################
+# Ninja
+#################################################
+
+
+ios-ninja:
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule") && $DOCKER_UPDATE == null && $SKIP_IOS == null
+  variables:
+    CMAKE_GENERATOR: Ninja
+    ARCHS_OPTIONS: $IOS_ARCHS
+    CMAKE_OPTIONS: -DLINPHONESDK_IOS_PLATFORM=Iphone -DENABLE_UNIT_TESTS=ON
+    CMAKE_BUILD_TYPE: -DCMAKE_BUILD_TYPE=RelWithDebInfo
+  extends: .ios
+
+ios-ninja-allcodecs:
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $ALL_IOS_BUILDS != null
+  variables:
+    CMAKE_GENERATOR: Ninja
+    ARCHS_OPTIONS: $IOS_ARCHS
+    CMAKE_OPTIONS: -DENABLE_CODEC2=ON -DENABLE_G729=ON -DENABLE_NON_FREE_FEATURES=ON
+    CMAKE_BUILD_TYPE: -DCMAKE_BUILD_TYPE=RelWithDebInfo
+  extends: .ios
+
+
+ios-ninja-g729:
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_IOS_BUILDS != null
+  variables:
+    CMAKE_OPTIONS: -DENABLE_G729=ON
+  extends: ios-ninja
+
+
+ios-ninja-novideo:
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_IOS_BUILDS != null
+  variables:
+    CMAKE_OPTIONS: -DENABLE_VIDEO=OFF
+  extends: ios-ninja
+
+
+ios-ninja-smallsdk:
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_IOS_BUILDS != null
+  extends:
+    - ios-ninja
+    - .smallsdk-cmake-options
+
+
+ios-ninja-pqc:
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_IOS_BUILDS != null
+  variables:
+    CMAKE_OPTIONS: -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON
+  extends: ios-ninja
+
+
+#################################################
+# XCode
+#################################################
+ios-xcode:
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_IOS_BUILDS != null
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $DEPLOY_IOS != null
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $DEPLOY_RUN_NUGET != null
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $UPLOAD_XAMARIN != null
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ENABLE_IOS_TESTS != null
+
+  variables:
+    CMAKE_GENERATOR: Xcode
+    # ENABLE_CSHARP_WRAPPER for the Xamarin package
+    CMAKE_OPTIONS: -DENABLE_SWIFT_WRAPPER=ON -DENABLE_CSHARP_WRAPPER=ON -DENABLE_DOC=ON -DENABLE_SWIFT_DOC=ON -DENABLE_UNIT_TESTS=ON
+    ADDITIONAL_BUILD_CONFIGURATIONS: --config RelWithDebInfo -j $MAX_NUMBER_TASK
+    ARCHS_OPTIONS: "arm64,x86_64"
+    GIT_FETCH_EXTRA_FLAGS: --tags --force --recurse-submodules=yes
+    GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8 --force --recursive
+
+  before_script:
+    - CCACHE_CONFIGPATH=~/Library/Preferences/ccache/ccache-xcode.conf
+
+    - !reference [.ios, before_script]
+  # All variables declared in "variables" are processed before "before_script" and "script", so declaring UPLOAD_CMAKE_OPTIONS (path to base URL) in before_script allows to set it dynamically.
+
+  script:
+    - DESCRIBE=$(git -C liblinphone describe)
+    - echo $DESCRIBE
+    - !reference [.choose_url_ios, script]
+    - UPLOAD_CMAKE_OPTIONS="-DLINPHONESDK_IOS_BASE_URL=${IOS_URL}"
+    - !reference [.ios, script]
+
+  extends: .ios
+
+ios-xcode-novideo:
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_IOS_BUILDS != null
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $DEPLOY_IOS != null
+  variables:
+    CMAKE_GENERATOR: Xcode
+    CMAKE_OPTIONS: -DENABLE_SWIFT_WRAPPER=ON -DENABLE_VIDEO=OFF
+    ADDITIONAL_BUILD_CONFIGURATIONS: --config RelWithDebInfo -j $MAX_NUMBER_TASK
+    ARCHS_OPTIONS: "arm64,x86_64"
+    GIT_FETCH_EXTRA_FLAGS: --tags --force --recurse-submodules=yes
+    GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8 --force --recursive
+
+  before_script:
+    - CCACHE_CONFIGPATH=~/Library/Preferences/ccache/ccache-xcode.conf
+
+    - !reference [.ios, before_script]
+  # All variables declared in "variables" are processed before "before_script" and "script", so declaring UPLOAD_CMAKE_OPTIONS (path to base URL) in before_script allows to set it dynamically.
+
+  script:
+    - DESCRIBE=$(git -C liblinphone describe)
+    - echo $DESCRIBE
+
+    - !reference [.choose_url_ios, script]
+    - UPLOAD_CMAKE_OPTIONS="-DLINPHONESDK_IOS_BASE_URL=${IOS_URL}/novideo/"
+    - !reference [.ios, script]
+  extends: .ios
+
+ios-xcode-pqc:
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_IOS_BUILDS != null
+
+  variables:
+    CMAKE_OPTIONS: -DENABLE_SWIFT_WRAPPER=ON -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON
+
+  # All variables declared in "variables" are processed before "before_script" and "script", so declaring UPLOAD_CMAKE_OPTIONS (path to base URL) in before_script allows to set it dynamically.
+
+  script:
+    - DESCRIBE=$(git -C liblinphone describe)
+    - echo $DESCRIBE
+
+    - !reference [.choose_url_ios, script]
+    - UPLOAD_CMAKE_OPTIONS="-DLINPHONESDK_IOS_BASE_URL=${IOS_URL}/pqc/"
+    - !reference [.ios, script]
+  extends: ios-xcode
+
+ios-xcode-doc-arm64:
+  tags: [ "macos-xcode15-flat" ]
+  variables:
+    CMAKE_OPTIONS: -DENABLE_DOC=ON -DENABLE_SWIFT_DOC=ON -DENABLE_SWIFT_WRAPPER=ON -DENABLE_CSHARP_WRAPPER=ON -DENABLE_UNIT_TESTS=ON -DLINPHONESDK_IOS_PLATFORM=Simulator -DLINPHONESDK_BUILD_TYPE=IOS
+    ARCHS_OPTIONS: "arm64"
+    CMAKE_PRESET: ios-arm64-simulator
+  extends: ios-xcode
+  before_script:
+    - !reference [.factorize_ios_upload, script]
+    #Xcode doesn't want full path so we give him only part of it
+    - !reference [.set_xcdoc_directory, script]
+    - CMAKE_OPTIONS="$CMAKE_OPTIONS -DLINPHONESDK_SWIFT_DOC_HOSTING_PATH=$UPLOAD_ROOT_DIRECTORY/docs/liblinphone/$LIBLINPHONE_VERSION/swift"
+    - !reference [ios-xcode, before_script]
+
+
+#################################################
+# SPM Ninja
+#################################################
+
+  
+ios-ninja-spm:
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" || $CI_PIPELINE_SOURCE == "schedule") && $DOCKER_UPDATE == null && $SKIP_IOS == null
+  variables:
+    CMAKE_GENERATOR: Ninja
+    ARCHS_OPTIONS: "arm64,x86_64"
+    GIT_FETCH_EXTRA_FLAGS: --tags --force --recurse-submodules=yes
+    GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8 --force --recursive
+    CMAKE_BUILD_TYPE: -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    SWIFT_PACKAGE_FLAVOR: ""
+    CMAKE_OPTIONS: "-DENABLE_CSHARP_WRAPPER=ON"
+  extends: .ios
+  script:
+    - DESCRIBE=$(git describe)
+    - echo $DESCRIBE
+    - !reference [.choose_url_ios, script]
+    - UPLOAD_CMAKE_OPTIONS="-DLINPHONESDK_IOS_BASE_URL=${IOS_URL}/spm/${SWIFT_PACKAGE_FLAVOR} -DUPLOAD_SWIFT_PACKAGE=ON"
+    - !reference [.ios, script]
+  artifacts:
+    paths:
+      - build/ios/gitdescribe.txt
+      - build/ios/linphonesdkversion.txt
+      - build/ios/linphone-sdk-*.zip
+      - build/ios/*.podspec
+      - build/ios/docs
+      - tester/IOS/LinphoneTester/Podfile
+      - build/ios/linphone-sdk-swift-ios
+
+ios-ninja-spm-novideo:
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_IOS_BUILDS != null
+  variables:
+    CMAKE_OPTIONS: -DENABLE_VIDEO=OFF
+    SWIFT_PACKAGE_FLAVOR: "novideo"
+  extends: ios-ninja-spm
+  script:
+    - !reference [ios-ninja-spm, script]

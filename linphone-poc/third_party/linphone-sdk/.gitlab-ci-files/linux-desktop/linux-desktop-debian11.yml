@@ -1,0 +1,208 @@
+wait-cache-synchro-debian11:
+  extends: .wait-cache-synchro
+  variables:
+    BUILD_SUBTYPE: debian11
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+
+recache-debian11:
+  extends: .recache-update-cache
+  allow_failure: true
+  image: !reference [.debian11_image_version, image]
+
+#Build template to use in other job scripts without having to copy same code
+#format = .className: &referenceName
+#Use = "<< *referenceName" to use the template ("-*" in script)
+
+
+.factorize_debian11: &docker_image_platform_and_runner_tag
+  tags: [ "docker-test" ]
+  image: !reference [.debian11_image_version, image]
+  variables:
+    PLATFORM: linux-debian11
+
+#################################################
+# Makefile
+#################################################
+
+
+debian11-makefile-gcc:
+
+  tags: [ "docker-flat" ]
+  image: !reference [.debian11_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: gcc
+    CXX: g++
+    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
+  extends: .linux-desktop
+
+
+debian11-makefile-clang:
+
+  tags: [ "docker-flat" ]
+  image: !reference [.debian11_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: clang
+    CXX: clang++
+    ADDITIONAL_BUILD_OPTIONS: -j$MAKEFILE_JOBS
+  extends: .linux-desktop
+
+
+#################################################
+# Ninja
+#################################################
+
+
+debian11-ninja-gcc:
+
+  tags: [ "docker-flat" ]
+  image: !reference [.debian11_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: gcc
+    CXX: g++
+    CMAKE_OPTIONS: -DENABLE_LDAP=OFF
+  extends: .linux-desktop
+  needs:
+    - wait-cache-synchro-debian11
+
+debian11-ninja-gcc-sequential:
+
+  tags: [ "docker-flat" ]
+  image: !reference [.debian11_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: gcc
+    CXX: g++
+    CMAKE_OPTIONS: -DBUILD_SHARED_LIBS=ON -DENABLE_STRICT=OFF
+  extends: .linux-desktop-sequential
+
+
+debian11-ninja-gcc-novideo:
+  variables:
+    CMAKE_OPTIONS: -DENABLE_VIDEO=OFF -DENABLE_LDAP=OFF
+  extends: debian11-ninja-gcc
+
+debian11-ninja-gcc-pqc:
+  variables:
+    CMAKE_OPTIONS: -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON -DENABLE_LDAP=OFF
+  extends: debian11-ninja-gcc
+
+debian11-ninja-gcc-smallsdk:
+  extends:
+    - debian11-ninja-gcc
+    - .smallsdk-cmake-options
+
+
+debian11-ninja-clang:
+  tags: [ "docker-flat" ]
+  image: !reference [.debian11_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: clang
+    CXX: clang++
+    CMAKE_OPTIONS: -DENABLE_LDAP=OFF
+  extends: .linux-desktop
+
+debian11-ninja-clang-sanitizer:
+  variables:
+    CMAKE_SANITIZER_OPTIONS: -DENABLE_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug
+    ADDITIONAL_BUILD_OPTIONS: "-j 4"
+  extends: debian11-ninja-clang
+
+debian11-ninja-clang-novideo:
+  variables:
+    CMAKE_OPTIONS: -DENABLE_VIDEO=OFF -DENABLE_LDAP=OFF
+  extends: debian11-ninja-clang
+
+debian11-ninja-clang-pqc:
+  variables:
+    CMAKE_OPTIONS: -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON -DENABLE_LDAP=OFF
+  extends: debian11-ninja-clang
+
+#################################################
+# TESTS
+#################################################
+
+
+
+bctoolbox-debian11-test:
+  extends: .test-bctoolbox
+  needs:
+    - debian11-ninja-gcc
+  <<: *docker_image_platform_and_runner_tag
+
+pqc-debian11-test:
+  extends: .test-pqc
+  <<: *docker_image_platform_and_runner_tag
+  needs:
+    - debian11-ninja-gcc-pqc
+
+bellesip-debian11-test:
+  extends: .test-bellesip
+  needs:
+    - debian11-ninja-gcc
+  #different runner needed because belle-sip_tester can't work in parallel (dialog test suite is crashing randomly)
+  tags: [ "docker-sequential" ]
+  image: !reference [.debian11_image_version, image]
+  variables:
+    PLATFORM: linux-debian11
+
+belr-debian11-test:
+  extends: .test-belr
+  needs:
+    - debian11-ninja-gcc
+  <<: *docker_image_platform_and_runner_tag
+
+belcard-debian11-test:
+  extends: .test-belcard
+  needs:
+    - debian11-ninja-gcc
+  <<: *docker_image_platform_and_runner_tag
+
+bzrtp-debian11-test:
+  extends: .test-bzrtp
+  needs:
+    - debian11-ninja-gcc
+  <<: *docker_image_platform_and_runner_tag
+
+ortp-debian11-test:
+  extends: .test-ortp
+  needs:
+    - debian11-ninja-gcc
+  <<: *docker_image_platform_and_runner_tag
+
+liblinphone-debian11-test:
+  image: !reference [.debian11_test_libl_image_version, image]
+  extends: .test-liblinphone
+  needs:
+    - debian11-ninja-gcc
+  variables:
+    PLATFORM: linux-debian11
+
+liblinphone-debian11-test-shaky:
+  image: !reference [.debian11_test_libl_image_version, image]
+  extends: .test-liblinphone-shaky
+  needs:
+    - debian11-ninja-gcc
+  variables:
+    PLATFORM: linux-debian11
+
+# liblinphone-debian11-test-mr:
+#   extends: .test-liblinphone-mr
+#   image: !reference [.debian11_test_libl_image_version, image]
+#   needs:
+#     - debian11-ninja-gcc
+#   variables:
+#     PLATFORM: linux-debian11
+
+# liblinphone-debian11-test-shaky-mr:
+#   extends: .test-liblinphone-shaky-mr
+#   image: !reference [.debian11_test_libl_image_version, image]
+#   needs:
+#     - debian11-ninja-gcc
+#   variables:
+#     PLATFORM: linux-debian11

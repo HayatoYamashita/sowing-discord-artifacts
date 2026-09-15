@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "streamer"
+version = "0.1.0"
+description = "Linphone Group-Call E2EE streaming CLI (PoC step 1 for key-commitment paper §5)"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+streamer = "streamer.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["streamer*"]

@@ -1,0 +1,30 @@
+# Build outputs
+linphone-poc/build/
+**/*.o
+**/*.dylib
+**/*.so
+
+# Secrets
+**/.env
+**/.sip-password
+**/.sip-password-focus
+
+# Runtime artifacts
+**/*.log
+opus-poc/raw_frames/
+opus-poc/padded_frames/
+opus-poc/cipher_frames/
+opus-poc/*.bin
+h265-poc/*.bin
+h265-poc/decrypted_key*.h265
+
+# macOS
+.DS_Store
+
+
+# Compiled test/bench binaries (rebuilt by `make -C attack/hook`)
+linphone-poc/attack/hook/smoke_test
+linphone-poc/attack/hook/test_attack_crypto
+linphone-poc/attack/hook/test_e2e_adversary
+linphone-poc/attack/hook/bench_attack_crypto
+linphone-poc/attack/verify/test_kdf_compat

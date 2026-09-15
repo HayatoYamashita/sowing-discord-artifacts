@@ -1,0 +1,629 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "android-common",
+      "inherits": "default",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "cacheVariables": {
+        "BUILD_BCG729_SHARED_LIBS": "OFF",
+        "BUILD_BCUNIT_SHARED_LIBS": "OFF",
+        "BUILD_BELCARD_SHARED_LIBS": "OFF",
+        "BUILD_BELLESIP_SHARED_LIBS": "OFF",
+        "BUILD_BELR_SHARED_LIBS": "OFF",
+        "BUILD_BV16_SHARED_LIBS": "OFF",
+        "BUILD_BZRTP_SHARED_LIBS": "OFF",
+        "BUILD_DECAF_SHARED_LIBS": "OFF",
+        "BUILD_GSM_SHARED_LIBS": "OFF",
+        "BUILD_LIBXML2_SHARED_LIBS": "OFF",
+        "BUILD_LIBYUV_SHARED_LIBS": "OFF",
+        "BUILD_LIME_SHARED_LIBS": "OFF",
+        "BUILD_MBEDTLS_SHARED_LIBS": "OFF",
+        "BUILD_MBEDTLS_WITH_FATAL_WARNINGS": "OFF",
+        "BUILD_OPENLDAP_SHARED_LIBS": "OFF",
+        "BUILD_OPUS_SHARED_LIBS": "OFF",
+        "BUILD_PQCRYPTO_SHARED_LIBS": "OFF",
+        "BUILD_SOCI_SHARED_LIBS": "OFF",
+        "BUILD_SPEEX_SHARED_LIBS": "OFF",
+        "BUILD_SQLITE3_SHARED_LIBS": "OFF",
+        "BUILD_XERCESC_SHARED_LIBS": "OFF",
+        "BUILD_ZLIB": "OFF",
+        "ENABLE_ANDROIDSND": "ON",
+        "ENABLE_CXX_WRAPPER": "OFF",
+        "ENABLE_DAEMON": "OFF",
+        "ENABLE_FLEXIAPI": "ON",
+        "ENABLE_FLOAT_API": "OFF",
+        "ENABLE_FIXED_POINT": "ON",
+        "ENABLE_JAVA_WRAPPER": "ON",
+        "ENABLE_JNI": "OFF",
+        "ENABLE_LDAP": "ON",
+        "ENABLE_AAUDIO": "ON",
+        "ENABLE_OBOE": "OFF",
+        "ENABLE_OPENSLES": "ON",
+        "ENABLE_RELATIVE_PREFIX": "ON",
+        "ENABLE_RNNOISE": "OFF",
+        "ENABLE_SCREENSHARING": "OFF",
+        "ENABLE_STRICT": "OFF",
+        "ENABLE_TOOLS": "OFF",
+        "ENABLE_UNIT_TESTS": "OFF",
+        "ENABLE_TESTS_COMPONENT": "OFF",
+        "ENABLE_WEBRTC_AEC": "ON",
+        "LINPHONESDK_PLATFORM": "Android"
+      }
+    },
+    {
+      "name": "android-arm64",
+      "inherits": "android-common",
+      "displayName": "Config for Android arm64",
+      "description": "Build for Android arm64 using Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-android-arm64.cmake"
+      }
+    },
+    {
+      "name": "android-armv7",
+      "inherits": "android-common",
+      "displayName": "Config for Android armv7",
+      "description": "Build for Android armv7 using Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-android-armv7.cmake",
+        "ENABLE_ARM_NEON_INTRINSICS": "ON"
+      }
+    },
+    {
+      "name": "android-x86",
+      "inherits": "android-common",
+      "displayName": "Config for Android x86",
+      "description": "Build for Android x86 using Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-android-x86.cmake"
+      }
+    },
+    {
+      "name": "android-x86_64",
+      "inherits": "android-common",
+      "displayName": "Config for Android x86_64",
+      "description": "Build for Android x86_64 using Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-android-x86_64.cmake"
+      }
+    },
+    {
+      "name": "android-sdk",
+      "inherits": "android-common",
+      "displayName": "Config for Android",
+      "description": "Build for Android (package for all selected archs)",
+      "cacheVariables": {
+        "LINPHONESDK_BUILD_TYPE": "Android"
+      }
+    },
+    {
+      "name": "bundled-android-common",
+      "inherits": "android-common",
+      "hidden": true,
+      "cacheVariables": {
+        "BUILD_BCTOOLBOX_SHARED_LIBS": "OFF",
+        "BUILD_JSONCPP_SHARED_LIBS": "OFF",
+        "BUILD_LIBJPEGTURBO_SHARED_LIBS": "OFF",
+        "BUILD_LIBSRTP2_SHARED_LIBS": "OFF",
+        "BUILD_MEDIASTREAMER2_SHARED_LIBS": "OFF",
+        "BUILD_MSAAUDIO_SHARED_LIBS": "OFF",
+        "BUILD_MSANDROIDCAMERA2_SHARED_LIBS": "OFF",
+        "BUILD_MSWEBRTC_SHARED_LIBS": "OFF",
+        "BUILD_ORTP_SHARED_LIBS": "OFF",
+        "BUILD_ZXINGCPP_SHARED_LIBS": "OFF",
+        "LINPHONESDK_PLATFORM": "BundledAndroid"
+      }
+    },
+    {
+      "name": "bundled-android-arm64",
+      "inherits": "bundled-android-common",
+      "displayName": "Config for Android arm64 (Bundled in a single shared lib)",
+      "description": "Build for Android arm64 using Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-bundled-android-arm64.cmake"
+      }
+    },
+    {
+      "name": "bundled-android-armv7",
+      "inherits": "bundled-android-common",
+      "displayName": "Config for Android armv7 (Bundled in a single shared lib)",
+      "description": "Build for Android armv7 using Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-bundled-android-armv7.cmake",
+        "ENABLE_ARM_NEON_INTRINSICS": "ON"
+      }
+    },
+    {
+      "name": "bundled-android-x86",
+      "inherits": "bundled-android-common",
+      "displayName": "Config for Android x86 (Bundled in a single shared lib)",
+      "description": "Build for Android x86 using Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-bundled-android-x86.cmake"
+      }
+    },
+    {
+      "name": "bundled-android-x86_64",
+      "inherits": "bundled-android-common",
+      "displayName": "Config for Android x86_64 (Bundled in a single shared lib)",
+      "description": "Build for Android x86_64 using Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-bundled-android-x86_64.cmake"
+      }
+    },
+    {
+      "name": "bundled-android-sdk",
+      "inherits": "bundled-android-common",
+      "displayName": "Config for Android (Bundled in a single shared lib)",
+      "description": "Build for Android (package for all selected archs)",
+      "cacheVariables": {
+        "LINPHONESDK_BUILD_TYPE": "BundledAndroid"
+      }
+    },
+    {
+      "name": "default",
+      "displayName": "Default Config",
+      "description": "Default build using Unix Makefiles generator",
+      "generator": "Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "ios-common",
+      "inherits": "default",
+      "hidden": true,
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "generator": "Xcode",
+      "cacheVariables": {
+        "BUILD_BCG729_SHARED_LIBS": "OFF",
+        "BUILD_BCUNIT_SHARED_LIBS": "OFF",
+        "BUILD_BV16_SHARED_LIBS": "OFF",
+        "BUILD_BZRTP_SHARED_LIBS": "OFF",
+        "BUILD_DECAF_SHARED_LIBS": "OFF",
+        "BUILD_GSM_SHARED_LIBS": "OFF",
+        "BUILD_JSONCPP_SHARED_LIBS": "OFF",
+        "BUILD_LIBJPEGTURBO_SHARED_LIBS": "OFF",
+        "BUILD_LIBOQS_SHARED_LIBS": "OFF",
+        "BUILD_LIBSRTP2_SHARED_LIBS": "OFF",
+        "BUILD_LIBXML2": "OFF",
+        "BUILD_LIBYUV_SHARED_LIBS": "OFF",
+        "BUILD_MBEDTLS_SHARED_LIBS": "ON",
+        "BUILD_MBEDTLS_WITH_FATAL_WARNINGS": "OFF",
+        "BUILD_MSWEBRTC_SHARED_LIBS": "OFF",
+        "BUILD_OPENLDAP_SHARED_LIBS": "OFF",
+        "BUILD_OPUS_SHARED_LIBS": "OFF",
+        "BUILD_PQCRYPTO_SHARED_LIBS": "OFF",
+        "BUILD_SOCI_SHARED_LIBS": "OFF",
+        "BUILD_SPEEX_SHARED_LIBS": "OFF",
+        "BUILD_SQLITE3": "OFF",
+        "BUILD_TUNNEL_SHARED_LIBS": "OFF",
+        "BUILD_XERCESC_SHARED_LIBS": "OFF",
+        "BUILD_ZLIB": "OFF",
+        "BUILD_ZXINGCPP_SHARED_LIBS": "OFF",
+        "ENABLE_DAEMON": "OFF",
+        "ENABLE_FLEXIAPI": "ON",
+        "ENABLE_FLOAT_API": "OFF",
+        "ENABLE_FIXED_POINT": "ON",
+        "ENABLE_LDAP": "ON",
+        "ENABLE_RELATIVE_PREFIX": "ON",
+        "ENABLE_RNNOISE": "OFF",
+        "ENABLE_SCREENSHARING": "OFF",
+        "ENABLE_STRICT": "OFF",
+        "ENABLE_SWIFT_WRAPPER": "ON",
+        "ENABLE_SWIFT_WRAPPER_COMPILATION": "OFF",
+        "ENABLE_TOOLS": "OFF",
+        "ENABLE_UNIT_TESTS": "OFF",
+        "LINPHONESDK_PLATFORM": "IOS"
+      }
+    },
+    {
+      "name": "ios-arm64",
+      "inherits": "ios-common",
+      "displayName": "Config for IOS arm64",
+      "description": "Build for IOS arm64 using Xcode",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-ios-arm64.cmake",
+        "ENABLE_ARM_NEON_INTRINSICS": "ON"
+      }
+    },
+    {
+      "name": "ios-arm64-simulator",
+      "inherits": "ios-common",
+      "displayName": "Config for IOS arm64 simulator",
+      "description": "Build for IOS arm64 simulator using Xcode",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-ios-arm64-simulator.cmake",
+        "ENABLE_VPX": "OFF"
+      }
+    },
+    {
+      "name": "ios-x86_64-simulator",
+      "inherits": "ios-common",
+      "displayName": "Config for IOS x86_64 simulator",
+      "description": "Build for IOS x86_64 simulator using Xcode",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-ios-x86_64-simulator.cmake"
+      }
+    },
+    {
+      "name": "ios-sdk",
+      "inherits": "ios-common",
+      "displayName": "Config for IOS",
+      "description": "Build for IOS (package for all selected archs)",
+      "cacheVariables": {
+        "LINPHONESDK_BUILD_TYPE": "IOS",
+        "ENABLE_FAT_BINARY": "OFF"
+      }
+    },
+    {
+      "name": "java-common",
+      "inherits": "default",
+      "hidden": true,
+      "displayName": "Common config for Java",
+      "description": "Common build for Java",
+      "cacheVariables": {
+        "BUILD_BCG729_SHARED_LIBS": "OFF",
+        "BUILD_BELCARD_SHARED_LIBS": "OFF",
+        "BUILD_BELLESIP_SHARED_LIBS": "OFF",
+        "BUILD_BELR_SHARED_LIBS": "OFF",
+        "BUILD_BV16_SHARED_LIBS": "OFF",
+        "BUILD_BZRTP_SHARED_LIBS": "OFF",
+        "BUILD_DECAF_SHARED_LIBS": "OFF",
+        "BUILD_GSM_SHARED_LIBS": "OFF",
+        "BUILD_JSONCPP_SHARED_LIBS": "OFF",
+        "BUILD_LIBJPEGTURBO_SHARED_LIBS": "OFF",
+        "BUILD_LIBSRTP2_SHARED_LIBS": "OFF",
+        "BUILD_LIBXML2_SHARED_LIBS": "OFF",
+        "BUILD_LIBYUV_SHARED_LIBS": "OFF",
+        "BUILD_LIME_SHARED_LIBS": "OFF",
+        "BUILD_MBEDTLS_SHARED_LIBS": "OFF",
+        "BUILD_MBEDTLS_WITH_FATAL_WARNINGS": "OFF",
+        "BUILD_OPENLDAP_SHARED_LIBS": "OFF",
+        "BUILD_OPUS_SHARED_LIBS": "OFF",
+        "BUILD_PQCRYPTO_SHARED_LIBS": "OFF",
+        "BUILD_SOCI_SHARED_LIBS": "OFF",
+        "BUILD_SPEEX_SHARED_LIBS": "OFF",
+        "BUILD_SQLITE3_SHARED_LIBS": "OFF",
+        "BUILD_XERCESC_SHARED_LIBS": "OFF",
+        "BUILD_ZLIB_SHARED_LIBS": "OFF",
+        "BUILD_ZXINGCPP_SHARED_LIBS": "OFF",
+        "ENABLE_CXX_WRAPPER": "OFF",
+        "ENABLE_DAEMON": "OFF",
+        "ENABLE_FLEXIAPI": "ON",
+        "ENABLE_JAVA_WRAPPER": "ON",
+        "ENABLE_JNI": "OFF",
+        "ENABLE_LDAP": "OFF",
+        "ENABLE_RELATIVE_PREFIX": "ON",
+        "ENABLE_TOOLS": "OFF",
+        "ENABLE_UNIT_TESTS": "OFF",
+        "ENABLE_TESTS_COMPONENT": "OFF",
+        "LINPHONESDK_BUILD_TYPE": "Java",
+        "LINPHONESDK_PLATFORM": "Java"
+      }
+    },
+    {
+      "name": "java-sdk-linux",
+      "inherits": "java-common",
+      "displayName": "Config for Java",
+      "description": "Build Java SDK for Linux"
+    },
+    {
+      "name": "java-sdk-windows",
+      "inherits": "java-common",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "generator": "Visual Studio 17 2022",
+      "displayName": "Config for Java on Windows 64 bits",
+      "description": "Build Java SDK for Windows 64 bits using Visual Studio 2022",
+      "architecture": "x64",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "RelWithDebInfo",
+        "ENABLE_WINDOWS_TOOLS_CHECK": "OFF"
+      }
+    },
+    {
+      "name": "mac-common",
+      "inherits": "default",
+      "hidden": true,
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "generator": "Xcode",
+      "cacheVariables": {
+        "BUILD_BCG729_SHARED_LIBS": "OFF",
+        "BUILD_BCUNIT_SHARED_LIBS": "OFF",
+        "BUILD_BV16_SHARED_LIBS": "OFF",
+        "BUILD_BZRTP_SHARED_LIBS": "OFF",
+        "BUILD_DECAF_SHARED_LIBS": "OFF",
+        "BUILD_GSM_SHARED_LIBS": "OFF",
+        "BUILD_JSONCPP_SHARED_LIBS": "OFF",
+        "BUILD_LIBJPEGTURBO_SHARED_LIBS": "OFF",
+        "BUILD_LIBSRTP2_SHARED_LIBS": "OFF",
+        "BUILD_LIBXML2_SHARED_LIBS": "OFF",
+        "BUILD_LIBYUV_SHARED_LIBS": "OFF",
+        "BUILD_MBEDTLS_SHARED_LIBS": "OFF",
+        "BUILD_OPENLDAP_SHARED_LIBS": "OFF",
+        "BUILD_OPUS_SHARED_LIBS": "OFF",
+        "BUILD_SOCI_SHARED_LIBS": "OFF",
+        "BUILD_SPEEX_SHARED_LIBS": "OFF",
+        "BUILD_SQLITE3_SHARED_LIBS": "OFF",
+        "BUILD_XERCESC_SHARED_LIBS": "OFF",
+        "BUILD_ZLIB_SHARED_LIBS": "OFF",
+        "ENABLE_SCREENSHARING": "ON",
+        "ENABLE_SWIFT_WRAPPER": "ON",
+        "ENABLE_SWIFT_WRAPPER_COMPILATION": "OFF"
+      }
+    },
+    {
+      "name": "mac-arm64",
+      "inherits": "mac-common",
+      "displayName": "Config for Mac arm64",
+      "description": "Build for Mac arm64 using Xcode",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-mac-arm64.cmake"
+      }
+    },
+    {
+      "name": "mac-x86_64",
+      "inherits": "mac-common",
+      "displayName": "Config for Mac x86_64",
+      "description": "Build for Mac x86_64 using Xcode",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-mac-x86_64.cmake"
+      }
+    },
+    {
+      "name": "mac-sdk",
+      "inherits": "mac-common",
+      "displayName": "Config for Mac",
+      "description": "Build for Mac (package for all selected archs)",
+      "cacheVariables": {
+        "LINPHONESDK_BUILD_TYPE": "Macos",
+        "ENABLE_FAT_BINARY": "ON"
+      }
+    },
+    {
+      "name": "raspberrypi-common",
+      "inherits": "default",
+      "hidden": true,
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "generator": "Unix Makefiles",
+      "cacheVariables": {
+        "BUILD_BV16_SHARED_LIBS": "OFF",
+        "BUILD_DECAF_SHARED_LIBS": "OFF",
+        "BUILD_GSM_SHARED_LIBS": "OFF",
+        "BUILD_JSONCPP_SHARED_LIBS": "OFF",
+        "BUILD_LIBSRTP2_SHARED_LIBS": "OFF",
+        "BUILD_LIBVPX": "OFF",
+        "BUILD_LIBXML2_SHARED_LIBS": "OFF",
+        "BUILD_LIBYUV_SHARED_LIBS": "OFF",
+        "BUILD_MBEDTLS_SHARED_LIBS": "OFF",
+        "BUILD_MBEDTLS_WITH_FATAL_WARNINGS": "OFF",
+        "BUILD_OPENLDAP_SHARED_LIBS": "OFF",
+        "BUILD_OPUS_SHARED_LIBS": "OFF",
+        "BUILD_SOCI_SHARED_LIBS": "OFF",
+        "BUILD_SPEEX_SHARED_LIBS": "OFF",
+        "BUILD_SQLITE3_SHARED_LIBS": "OFF",
+        "BUILD_XERCESC_SHARED_LIBS": "OFF",
+        "BUILD_ZXINGCPP_SHARED_LIBS": "OFF",
+        "ENABLE_AV1": "OFF",
+        "ENABLE_FLOAT_API": "OFF",
+        "ENABLE_FIXED_POINT": "ON",
+        "ENABLE_RNNOISE": "OFF",
+        "ENABLE_SCREENSHARING": "OFF",
+        "ENABLE_STRICT": "OFF",
+        "ENABLE_WEBRTC_AEC": "ON",
+        "LINPHONESDK_PLATFORM": "Raspberry",
+        "OPUS_FIXED_POINT": "ON"
+      }
+    },
+    {
+      "name": "raspberrypi-0-1",
+      "inherits": "raspberrypi-common",
+      "displayName": "Config for Raspberry PI Zero/W/WH & 1 Model A/B/A+/B+",
+      "description": "Build for Raspberry PI Zero/W/WH & 1 Model A/B/A+/B+ using Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-raspberrypi-0-1.cmake"
+      }
+    },
+    {
+      "name": "raspberrypi-2-3",
+      "inherits": "raspberrypi-common",
+      "displayName": "Config for Raspberry PI 2 & 3 Model A/B",
+      "description": "Build for Raspberry PI 2 & 3 Model A/B using Unix Makefiles",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-raspberrypi-2-3.cmake"
+      }
+    },
+    {
+      "name": "raspberrypi-3+",
+      "inherits": "raspberrypi-common",
+      "displayName": "Config for Raspberry PI 3 & 4 Model A+/B+ & Compute 3/3-lite/3+ (32 bits)",
+      "description": "Build for Raspberry PI 3 & 4 Model A+/B+ & Compute 3/3-lite/3+ (32 bits)",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-raspberrypi-3+.cmake"
+      }
+    },
+    {
+      "name": "uwp-common",
+      "inherits": "default",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "generator": "Visual Studio 17 2022",
+      "cacheVariables": {
+        "BUILD_MBEDTLS_WITH_FATAL_WARNINGS": "OFF",
+        "ENABLE_AV1": "OFF",
+        "ENABLE_CSHARP_WRAPPER": "ON",
+        "ENABLE_DAEMON": "OFF",
+        "ENABLE_FLEXIAPI": "ON",
+        "ENABLE_G729B_CNG": "OFF",
+        "ENABLE_LDAP": "ON",
+        "ENABLE_RELATIVE_PREFIX": "ON",
+        "ENABLE_SCREENSHARING": "OFF",
+        "ENABLE_TOOLS": "OFF",
+        "ENABLE_TUTORIALS": "OFF",
+        "ENABLE_UNIT_TESTS": "OFF",
+        "ENABLE_WINDOWS_TOOLS_CHECK": "OFF",
+        "LINPHONESDK_PLATFORM": "UWP"
+      }
+    },
+    {
+      "name": "uwp-x64",
+      "inherits": "uwp-common",
+      "displayName": "Config for UWP 64 bits",
+      "description": "Build for UWP 64 bits using Visual Studio 2022",
+      "architecture": "x64",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-uwp-x64.cmake"
+      }
+    },
+    {
+      "name": "uwp-x86",
+      "inherits": "uwp-common",
+      "displayName": "Config for UWP 32 bits",
+      "description": "Build for UWP 32 bits using Visual Studio 2022",
+      "architecture": "Win32",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-uwp-x86.cmake"
+      }
+    },
+    {
+      "name": "uwp-sdk",
+      "inherits": "uwp-common",
+      "displayName": "Config for UWP",
+      "description": "Build for UWP (package for all selected archs)",
+      "cacheVariables": {
+        "LINPHONESDK_BUILD_TYPE": "UWP"
+      }
+    },
+    {
+      "name": "windows-common",
+      "inherits": "default",
+      "hidden": true,
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "generator": "Visual Studio 17 2022",
+      "cacheVariables": {
+        "ENABLE_LDAP": "ON",
+        "BUILD_MBEDTLS_WITH_FATAL_WARNINGS": "OFF",
+        "ENABLE_CSHARP_WRAPPER": "ON",
+        "ENABLE_RELATIVE_PREFIX": "ON",
+        "ENABLE_SCREENSHARING": "ON",
+        "ENABLE_WINDOWS_TOOLS_CHECK": "OFF"
+      }
+    },
+    {
+      "name": "windows-32bits",
+      "inherits": "windows-common",
+      "displayName": "Config for Windows 32 bits",
+      "description": "Build for Windows 32 bits using Visual Studio 2022",
+      "architecture": "Win32",
+      "cacheVariables": {
+        "LINPHONESDK_WINDOWS_ARCHS": "32bits"
+      }
+    },
+    {
+      "name": "windows-64bits",
+      "inherits": "windows-common",
+      "displayName": "Config for Windows 64 bits",
+      "description": "Build for Windows 64 bits using Visual Studio 2022",
+      "architecture": "x64"
+    },
+    {
+      "name": "windows-sdk",
+      "inherits": "windows-common",
+      "displayName": "Config for Windows",
+      "description": "Build for Windows (package for all selected archs)",
+      "cacheVariables": {
+        "LINPHONESDK_BUILD_TYPE": "Windows"
+      }
+    },
+    {
+      "name": "windows-ninja-common",
+      "inherits": "windows-common",
+      "hidden": true,
+      "generator": "Ninja"
+    },
+    {
+      "name": "windows-ninja-32bits",
+      "inherits": "windows-ninja-common",
+      "displayName": "Config for Windows 32 bits",
+      "description": "Build for Windows 32 bits using Ninja"
+    },
+    {
+      "name": "windows-ninja-64bits",
+      "inherits": "windows-common",
+      "displayName": "Config for Windows 64 bits",
+      "description": "Build for Windows 64 bits using Ninja"
+    },
+    {
+      "name": "windows-ninja-sdk",
+      "inherits": "windows-ninja-common",
+      "displayName": "Config for Windows",
+      "description": "Build for Windows (package for all selected archs)",
+      "cacheVariables": {
+        "LINPHONESDK_BUILD_TYPE": "Windows",
+        "LINPHONESDK_WINDOWS_PRESET_PREFIX": "windows-ninja-"
+      }
+    },
+    {
+      "name": "windows-store-32bits",
+      "inherits": "windows-common",
+      "displayName": "Config for Windows Store 32 bits",
+      "description": "Build for Windows Store 32 bits using Visual Studio 2022",
+      "architecture": "Win32",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-windows-store-x86.cmake",
+        "ENABLE_MICROSOFT_STORE_APP": "ON"
+      }
+    },
+    {
+      "name": "windows-store-64bits",
+      "inherits": "windows-common",
+      "displayName": "Config for Windows Store 64 bits",
+      "description": "Build for Windows Store 64 bits using Visual Studio 2022",
+      "architecture": "x64",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/toolchain-windows-store-x64.cmake",
+        "ENABLE_MICROSOFT_STORE_APP": "ON"
+      }
+    },
+    {
+      "name": "windows-store-sdk",
+      "inherits": "windows-common",
+      "displayName": "Config for Windows Store",
+      "description": "Build for Windows Store (package for all selected archs)",
+      "cacheVariables": {
+        "ENABLE_MICROSOFT_STORE_APP": "ON",
+        "LINPHONESDK_BUILD_TYPE": "Windows"
+      }
+    }
+  ]
+}

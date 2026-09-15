@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Packaging
+dist/
+
+# Build outputs (linphone-sdk build, plugin build, venv, envrc, log)
+/build/
+
+# Legacy: earlier reproductions cloned the upstream Linphone SDK
+# under ./linphone-sdk/ via scripts/setup_linphone_sdk.sh. The SDK is
+# now vendored under third_party/linphone-sdk/ via git subtree, so
+# this ignore rule only guards against a leftover clone reappearing.
+/linphone-sdk/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+*.cmake.lock
+
+# Editors / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local secrets / per-user config
+.env
+.envrc.local
+.sip-password
+.sip-password-*
+scripts/.env
+conf/linphonerc.local

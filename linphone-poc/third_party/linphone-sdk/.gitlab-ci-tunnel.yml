@@ -1,0 +1,61 @@
+#################################################
+# Base configuration
+#################################################
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  MAKEFILE_JOBS: 5
+  CCACHE_SIZE: 3G
+
+  #Lime X3DH activated by default, if there is a problem, see the default
+  #build options in CMakeBuilder
+  #Do not set CMAKE_OPTIONS here as it may be overwritten by child jobs
+
+
+#################################################
+# Platforms to test
+#################################################
+
+.job-prepare:
+  only:
+    - schedules
+
+  except:
+    variables:
+      - $FAST_LINUX_TESTS
+
+  retry:
+    max: 2
+    when: runner_system_failure
+
+include:
+  - '.gitlab-ci-files/rules.yml'
+
+  - '.gitlab-ci-files/.docker-images.yml'
+  - '.gitlab-ci-files/.set_parallel_level.yml'
+
+  - '.gitlab-ci-files/linux-prepare.yml'
+
+  - '.gitlab-ci-files/android/builds.yml'
+  - '.gitlab-ci-files/android/tests.yml'
+
+  - '.gitlab-ci-files/iOS/builds.yml'
+  - '.gitlab-ci-files/iOS/tests.yml'
+
+  - '.gitlab-ci-files/linux-desktop/linux-desktop.yml'
+#  - '.gitlab-ci-files/linux-desktop/linux-desktop-archlinux-latest.yml'
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-centos7.yml'
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-debian11.yml'
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-debian12.yml'
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-debian13.yml'
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-ubuntu-rolling.yml'
+
+  - '.gitlab-ci-files/macosx/builds.yml'
+  - '.gitlab-ci-files/macosx/tests.yml'
+
+  - '.gitlab-ci-files/windows/builds.yml'
+  - '.gitlab-ci-files/windows/tests.yml'
+
+stages:
+ - build
+ - test

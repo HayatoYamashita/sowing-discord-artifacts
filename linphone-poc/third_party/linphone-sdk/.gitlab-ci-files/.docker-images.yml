@@ -1,0 +1,64 @@
+########################################################
+# Docker Image version, common for sdk and sdk tunnel
+########################################################
+# We need to redefine images use here because they are used as fallback cache key. The cache fallback key don't work with defined variables in jobs. It needs static values, that we use here with !references
+
+.android_r27_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-android-r27:20240717_update_ndk
+
+.archlinux_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-archlinux:20230706_add_deps_for_av1
+
+.archlinux_test_libl_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-archlinux-test-liblinphone:20230706_add_deps_for_av1
+
+.debian11_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian11:20240506_add_jsoncpp_for_oauth2
+
+.debian11_test_libl_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian11-test-liblinphone:20240506_add_jsoncpp_for_oauth2
+
+.debian12_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian12:20240506_add_jsoncpp_for_oauth2
+
+.debian12_java_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian12-java:20241126_update_java_21
+
+.debian12_test_libl_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian12-test-liblinphone:20250401_update_java_21
+
+.debian13_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian13:20251103_update_setuptools
+
+.debian13_java_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian13-java:20251103_update_setuptools
+
+.debian13_test_libl_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian13-test-liblinphone:20251103_update_setuptools
+
+.gentoo_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-gentoo:20250627_update_packages_after_submodules_removal
+
+.raspios_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-raspios:20230706_add_deps_for_av1
+
+.rocky8_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-rocky8:20230914_gdb_toolset_12_sdk
+
+.rocky8_test_libl_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-rocky8-test-liblinphone:20240705_audio_group_entrypoint
+
+.rocky8_python_wrapper_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-rocky8-python-wrapper:20250115_init
+
+.ubuntu2004_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu-20-04-lts:20231025_remove_modules_install_from_arg
+
+.ubuntu2004_test_libl_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu-20-04-lts-test-liblinphone:20231025_remove_modules_install_from_arg
+
+.ubuntu-rolling_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu-rolling:20230802_fix_wrong_user_id
+
+.ubuntu-rolling-test-liblinphone_image_version:
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu-rolling-test-liblinphone:20230802_fix_wrong_user_id

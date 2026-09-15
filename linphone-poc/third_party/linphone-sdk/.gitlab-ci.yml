@@ -1,0 +1,119 @@
+#################################################
+# Base configuration
+#################################################
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8 --recursive
+  MAKEFILE_JOBS: 10
+  CCACHE_SIZE: 3G
+  FF_USE_FASTZIP: 1
+  LIBLINPHONE_TESTER_DNS: "fs-test-10.linphone.org"
+
+  #Lime X3DH activated by default, if there is a problem, see the default
+  #build options in CMakeBuilder
+  #Do not set CMAKE_OPTIONS here as it may be overwritten by child jobs
+
+
+#################################################
+# Platforms to test
+#################################################
+
+.job-prepare:
+  variables:
+    ALL_JOB_VARIABLE: ""
+  retry:
+    max: 2
+    when: runner_system_failure
+
+#https://docs.gitlab.com/ee/ci/yaml/index.html#workflow
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != "master" && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"
+      when: never
+    #Launch merge request pipeline is there is a merge request open
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^Draft:.*/
+    #Launch pipeline if there is a schedule event
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+include:
+  - '.gitlab-ci-files/rules.yml'
+  - '.gitlab-ci-files/variables.yml'
+
+  - '.gitlab-ci-files/.docker-images.yml'
+  - '.gitlab-ci-files/.set_parallel_level.yml'
+  - '.gitlab-ci-files/.choose_upload_dir.yml'
+
+  - '.gitlab-ci-files/linux-prepare.yml'
+
+  - '.gitlab-ci-files/android/builds.yml'
+  - '.gitlab-ci-files/android/tests.yml'
+  - '.gitlab-ci-files/android/uploads.yml'
+
+  - '.gitlab-ci-files/iOS/builds.yml'
+  - '.gitlab-ci-files/iOS/tests.yml'
+  - '.gitlab-ci-files/iOS/uploads.yml'
+
+  - '.gitlab-ci-files/linux-desktop/linux-desktop.yml'
+  - '.gitlab-ci-files/linux-desktop/uploads.yml'
+  # - '.gitlab-ci-files/raspbian.yml'
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-archlinux-latest.yml'
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-debian11.yml'
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-debian12.yml'
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-debian13.yml'
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-gentoo.yml'
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-rocky8.yml'
+
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-ubuntu-rolling.yml'
+  - '.gitlab-ci-files/linux-desktop/linux-desktop-ubuntu2004.yml'
+
+  - '.gitlab-ci-files/java-linux/commons.yml'
+  - '.gitlab-ci-files/java-linux/ubuntu24_04.yml'
+  - '.gitlab-ci-files/java-linux/rocky9.yml'
+
+  - '.gitlab-ci-files/yocto-raspberrypi3.yml'
+  # - '.gitlab-ci-files/yocto-qemuarm64.yml'
+  # - '.gitlab-ci-files/yocto-qemux86-64.yml'
+
+  - '.gitlab-ci-files/raspberrypi.yml'
+
+  - '.gitlab-ci-files/macos/builds.yml'
+  - '.gitlab-ci-files/macos/tests.yml'
+  - '.gitlab-ci-files/macos/uploads.yml'
+
+  - '.gitlab-ci-files/windows/builds.yml'
+  - '.gitlab-ci-files/windows/tests.yml'
+  - '.gitlab-ci-files/windows/packages.yml'
+  - '.gitlab-ci-files/windows/uploads.yml'
+
+  - '.gitlab-ci-files/xamarin/packages.yml'
+  - '.gitlab-ci-files/xamarin/uploads.yml'
+
+  - '.gitlab-ci-files/test-report-uploads.yml'
+
+  - '.gitlab-ci-files/check-orphan-commits.yml'
+
+  - '.gitlab-ci-files/send-email.yml'
+
+  - '.gitlab-ci-files/docker-image-update/update-ubuntu-rolling.yml'
+  - '.gitlab-ci-files/docker-image-update/update-archlinux.yml'
+  - '.gitlab-ci-files/docker-image-update/update-debian11.yml'
+  - '.gitlab-ci-files/docker-image-update/update-debian12.yml'
+  - '.gitlab-ci-files/docker-image-update/update-debian13.yml'
+  - '.gitlab-ci-files/docker-image-update/update-rocky8.yml'
+
+stages:
+ - init-recache
+ - recache
+ - wait-cache-synchro
+ - docker-update-build
+ - build
+ - docker-update-build-ms
+ - docker-update-build-liblinphone
+ - test
+ - check-orphans
+ - package
+ - deploy
+ - email-notif

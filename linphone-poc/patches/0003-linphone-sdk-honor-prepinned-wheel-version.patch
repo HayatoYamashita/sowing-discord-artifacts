@@ -1,0 +1,55 @@
+Subject: [PATCH] cmake/python: honor a pre-pinned wheel version
+
+Base: upstream linphone-sdk commit 7d5fe98a18ff7be2381656b600f880e3c49f5089
+      (master, 2025-12-23), vendored under third_party/linphone-sdk/.
+
+This patch is applied automatically by poc-linphone/scripts/build_linphone_sdk.sh
+before configuring the SDK build, and reverted after the build completes. The
+linphone-sdk source tree is otherwise untouched.
+
+Why this patch exists
+=====================
+
+When the linphone-sdk source is vendored under poc-linphone/third_party/
+(via `git subtree`), `git describe` invoked inside that tree returns a tag
+from the surrounding poc-linphone repository (e.g.
+"proposed-attack-complete-25-g000ca4f367"), not from the upstream
+linphone-sdk repository. Two places in the upstream cmake configure call
+`git describe` and FATAL_ERROR if the output does not match a
+major.minor.patch grammar:
+
+  * bctoolbox/cmake/BCToolboxCMakeUtils.cmake — bc_compute_full_version()
+    Already gated by `if(NOT LINPHONESDK_VERSION)` in the top-level
+    CMakeLists.txt, so passing -DLINPHONESDK_VERSION=… on the cmake
+    command line bypasses it.
+
+  * cmake/python/GenerateWheel.cmake — bc_compute_python_wheel_version()
+    Has no such gate. This patch adds one. When the caller sets
+    -DWHEEL_LINPHONESDK_VERSION_PINNED=<version>, the function uses
+    that value verbatim and skips the git describe probe.
+
+In stock builds (where neither the gate variable is set), the function
+behaves exactly as upstream.
+
+---
+ cmake/python/GenerateWheel.cmake | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/cmake/python/GenerateWheel.cmake b/cmake/python/GenerateWheel.cmake
+index 3cbe397ee1..6d919b5684 100644
+--- a/cmake/python/GenerateWheel.cmake
++++ b/cmake/python/GenerateWheel.cmake
+@@ -32,6 +32,13 @@ linphone_sdk_check_python_module_is_installed(wheel)
+
+ # See https://packaging.python.org/guides/distributing-packages-using-setuptools/#id61
+ function(bc_compute_python_wheel_version OUTPUT_VERSION)
++if(WHEEL_LINPHONESDK_VERSION_PINNED)
++    # PoC patch: honor caller-provided version; skip the git describe
++    # probe that fails when this tree is embedded in another git
++    # repository (e.g. as a vendored subtree under third_party/).
++    set(${OUTPUT_VERSION} "${WHEEL_LINPHONESDK_VERSION_PINNED}" CACHE STRING "" FORCE)
++    return()
++endif()
+ find_program(GIT_EXECUTABLE git NAMES Git CMAKE_FIND_ROOT_PATH_BOTH)
+ if(GIT_EXECUTABLE)
+     execute_process(

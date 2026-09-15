@@ -1,0 +1,172 @@
+wait-cache-synchro-archlinux:
+  extends: .wait-cache-synchro
+  variables:
+    BUILD_SUBTYPE: archlinux
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SKIP_LINUX == null
+    - !reference [.wait-cache-synchro, rules]
+
+recache-archlinux:
+  extends: .recache-update-cache
+  image: !reference [.archlinux_image_version, image]
+
+#Build template to use in other job scripts without having to copy same code
+#format = .className: &referenceName
+#Use = "<< *referenceName" to use the template ("-*" in script)
+
+
+.factorize_arch: &docker_image_platform_and_runner_tag
+  tags: [ "docker-test" ]
+  image: !reference [.archlinux_image_version, image]
+  variables:
+    PLATFORM: linux-arch
+
+#################################################
+# Makefile
+#################################################
+
+
+arch-latest-makefile-gcc:
+
+  tags: [ "docker-flat" ]
+  image: !reference [.archlinux_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: gcc
+    CXX: g++
+  extends: .linux-desktop
+
+
+arch-latest-makefile-clang:
+
+  tags: [ "docker-flat" ]
+  image: !reference [.archlinux_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    CC: clang
+    CXX: clang++
+  extends: .linux-desktop
+
+
+#################################################
+# Ninja
+#################################################
+
+
+arch-latest-ninja-gcc:
+  tags: [ "docker-flat" ]
+  image: !reference [.archlinux_image_version, image]
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: gcc
+    CXX: g++
+  extends: .linux-desktop
+
+arch-latest-ninja-gcc-novideo:
+  variables:
+    CMAKE_OPTIONS: -DENABLE_VIDEO=OFF
+  extends: arch-latest-ninja-gcc
+
+arch-latest-ninja-gcc-pqc:
+  variables:
+    CMAKE_OPTIONS: -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON
+  extends: arch-latest-ninja-gcc
+
+
+arch-latest-ninja-clang:
+
+  tags: [ "docker-flat" ]
+  image: !reference [.archlinux_image_version, image]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $DOCKER_UPDATE == null && $SKIP_LINUX == null
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CC: clang
+    CXX: clang++
+  extends: .linux-desktop
+  needs:
+    - wait-cache-synchro-archlinux
+
+
+arch-latest-ninja-clang-novideo:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_LINUX_BUILDS != null && $DOCKER_UPDATE == null && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+  variables:
+    CMAKE_OPTIONS: -DENABLE_VIDEO=OFF
+  extends: arch-latest-ninja-clang
+
+arch-latest-ninja-clang-pqc:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_LINUX_BUILDS != null && $DOCKER_UPDATE == null && $SKIP_LINUX == null
+    - !reference [.rules-merge-request-manual, rules]
+  variables:
+    CMAKE_OPTIONS: -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON
+  extends: arch-latest-ninja-clang
+
+
+#################################################
+# TESTS
+#################################################
+
+
+bctoolbox-arch-test:
+  extends: .test-bctoolbox
+  needs:
+    - arch-latest-ninja-clang
+  <<: *docker_image_platform_and_runner_tag
+
+pqc-arch-test:
+  extends: .test-pqc
+  <<: *docker_image_platform_and_runner_tag
+  needs:
+    - arch-latest-ninja-clang-pqc
+
+bellesip-arch-test:
+  extends: .test-bellesip
+  needs:
+    - arch-latest-ninja-clang
+  #different runner needed because belle-sip_tester can't work in parallel (dialog test suite is crashing randomly)
+  tags: [ "docker-sequential" ]
+  image: !reference [.archlinux_image_version, image]
+  variables:
+    PLATFORM: linux-arch
+
+belr-arch-test:
+  extends: .test-belr
+  needs:
+    - arch-latest-ninja-clang
+  <<: *docker_image_platform_and_runner_tag
+
+belcard-arch-test:
+  extends: .test-belcard
+  needs:
+    - arch-latest-ninja-clang
+  <<: *docker_image_platform_and_runner_tag
+
+bzrtp-arch-test:
+  extends: .test-bzrtp
+  needs:
+    - arch-latest-ninja-clang
+  <<: *docker_image_platform_and_runner_tag
+
+liblinphone-arch-test:
+  image: !reference [.archlinux_test_libl_image_version, image]
+    #  rules:
+    #- !reference [.rules-merge-request-manual, rules]
+  extends: .test-liblinphone
+  needs:
+    - arch-latest-ninja-clang
+  variables:
+    PLATFORM: linux-arch
+
+liblinphone-arch-test-shaky:
+  image: !reference [.archlinux_test_libl_image_version, image]
+    #  rules:
+    #- !reference [.rules-merge-request-manual, rules]
+  extends: .test-liblinphone-shaky
+  needs:
+    - arch-latest-ninja-clang
+  variables:
+    PLATFORM: linux-arch

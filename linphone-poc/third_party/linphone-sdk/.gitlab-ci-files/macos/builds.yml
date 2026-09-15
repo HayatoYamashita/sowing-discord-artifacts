@@ -1,0 +1,206 @@
+.macos-desktop:
+  extends: .job-prepare
+  stage: build
+  tags: [ "macos-xcode13-flat" ]
+
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_MACOS_BUILDS != null
+
+  variables:
+    DEFAULT_CMAKE_OPTIONS: -DPython3_ROOT_DIR=/opt/bc/pip-packages/
+    CMAKE_OPTIONS: -DENABLE_LDAP=ON
+    LINPHONESDK_MACOS_ARCHS: "arm64"
+
+  before_script:
+    - export CCACHE_DIR=~/Library/Preferences/ccache-linphone-sdk-master
+    - ccache -s --verbose
+
+    # We clean the cache stats because it is our only way to see the cache stats per job run (one cleaner way would be to store in a file a do the delta by hand)
+    - ccache -z
+    - ccache -s --verbose
+
+  after_script:
+    #Mandatory, as variable export is not kept between before_script/script and after script
+    - export CCACHE_DIR=~/Library/Preferences/ccache-linphone-sdk-master
+    - ccache -s --verbose
+
+  script:
+    - !reference [.set-max-jobs-unix, script]
+    - echo $MACOS_DEPLOY_URL
+    - echo $UPLOAD_CMAKE_OPTIONS
+    - if [ -d "build" ]; then rm -rf build; fi;
+    - echo $CMAKE_GENERATOR
+    - echo $DEFAULT_CMAKE_OPTIONS
+    - echo $CMAKE_OPTIONS
+    - echo $LINPHONESDK_MACOS_ARCHS
+    - cmake --preset=mac-sdk -B build/mac -G "$CMAKE_GENERATOR" $CMAKE_BUILD_TYPE -DCMAKE_OSX_DEPLOYMENT_TARGET=12.3 -DLINPHONESDK_MACOS_ARCHS="$LINPHONESDK_MACOS_ARCHS" $DEFAULT_CMAKE_OPTIONS $UPLOAD_CMAKE_OPTIONS $CMAKE_OPTIONS $SCHEDULE_CMAKE_OPTIONS
+    - cmake --build build/mac $ADDITIONAL_BUILD_CONFIGURATIONS -- $ADDITIONAL_BUILD_OPTIONS
+    #used to know the right zip to pick up in tests stage. we parse the git status command to stop at the number of commits
+    #and we then use a glob in test stage to get the right archive
+    #using only the git describe doesn't work because the commit hashes don't match
+    - ls -t build/mac/linphone-sdk-*.zip > build/mac/sdk_archive_name.txt
+    - cat build/mac/sdk_archive_name.txt
+    - echo $(git describe) > build/mac/gitdescribe.txt
+
+  artifacts:
+    paths:
+      - build/mac/gitdescribe.txt
+      - build/mac/sdk_archive_name.txt
+      - build/mac/linphone-sdk-*.zip
+      - build/mac/linphone-sdk.podspec
+      - liblinphone/tester/*
+      - build/mac/linphone-sdk-swift-macos
+    when: always
+    expire_in: 1 day
+
+# Screen sharing not available on Xcode 12
+.macos-m1-multiarch-desktop:
+  tags: [ "macos-min-xcode12.2-flat" ]
+  variables:
+    LINPHONESDK_MACOS_ARCHS: "arm64, x86_64"
+    CMAKE_OPTIONS: -DENABLE_SCREENSHARING=OFF
+  extends: .macos-desktop
+
+#################################################
+# Makefile
+#################################################
+
+macos-m1-multiarch-makefile:
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $ALL_MACOS_BUILDS != null
+    - if: $DEPLOY_MACOS != null
+  variables:
+    CMAKE_GENERATOR: Unix Makefiles
+    GIT_FETCH_EXTRA_FLAGS: --tags --force --recurse-submodules=yes
+    GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8 --force --recursive
+    CMAKE_BUILD_TYPE: -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    #Only used to overwrite value set by .set_parallel_level.yml
+    #ADDITIONAL_BUILD_OPTIONS: -j[jobs]
+
+  # All variables declared in "variables" are processed before "before_script" and "script", so declaring UPLOAD_CMAKE_OPTIONS (path to base URL) in before_script allows to set it dynamically.
+  script:
+    - DESCRIBE=$(git -C liblinphone describe)
+    - echo $DESCRIBE
+
+    - !reference [.choose_url_macos, script]
+
+    - UPLOAD_CMAKE_OPTIONS="-DLINPHONESDK_MACOS_BASE_URL=$MACOS_URL"
+
+    - !reference [.macos-m1-multiarch-desktop, script]
+  extends: .macos-m1-multiarch-desktop
+
+macos-m1-multiarch-makefile-pqc:
+  variables:
+    CMAKE_OPTIONS: -DENABLE_LDAP=ON -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON -DENABLE_SCREENSHARING=OFF
+  extends: macos-m1-multiarch-makefile
+
+#################################################
+# Ninja
+#################################################
+
+
+macos-ninja:
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CMAKE_OPTIONS: -DENABLE_LDAP=ON -DENABLE_EXAMPLE_PLUGIN=ON
+    CMAKE_BUILD_TYPE: -DCMAKE_BUILD_TYPE=RelWithDebInfo
+  extends: .macos-desktop
+
+macos-m1-multiarch-ninja:
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_LDAP=ON -DENABLE_SCREENSHARING=OFF
+    CMAKE_BUILD_TYPE: -DCMAKE_BUILD_TYPE=RelWithDebInfo
+  extends: .macos-m1-multiarch-desktop
+
+macos-m1-ninja-pqc-multiarch:
+  variables:
+    CMAKE_OPTIONS: -DENABLE_LDAP=ON -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON -DENABLE_EXAMPLE_PLUGIN=ON -DENABLE_UNIT_TESTS=ON -DENABLE_SCREENSHARING=OFF
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == "merge_request_event") && $DOCKER_UPDATE == null && $SKIP_MACOS == null
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $DOCKER_UPDATE == null && $SKIP_MACOS == null
+  extends: macos-m1-multiarch-ninja
+
+macos-ninja-novideo:
+  variables:
+    CMAKE_OPTIONS: -DENABLE_VIDEO=OFF -DENABLE_LDAP=ON
+  extends: macos-ninja
+
+macos-m1-multiarch-ninja-smallsdk:
+  extends:
+    - .macos-m1-multiarch-desktop
+    - .smallsdk-cmake-options
+  variables:
+    CMAKE_GENERATOR: Ninja
+    CMAKE_BUILD_TYPE: -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+#################################################
+# XCode
+#################################################
+
+
+macos-xcode:
+  extends: .macos-desktop
+  variables:
+    CMAKE_GENERATOR: Xcode
+    #Only used to overwrite value set by .set_parallel_level.yml
+    #ADDITIONAL_BUILD_OPTIONS: -j[jobs]
+    GIT_FETCH_EXTRA_FLAGS: --tags --force --recurse-submodules=yes
+    GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8 --force --recursive
+    ADDITIONAL_BUILD_CONFIGURATIONS: --config RelWithDebInfo
+
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $ALL_MACOS_BUILDS != null
+    - if: $DEPLOY_MACOS != null
+
+  before_script:
+    - CCACHE_CONFIGPATH=~/Library/Preferences/ccache/ccache-xcode.conf
+
+    - !reference [.macos-desktop, before_script]
+
+  script:
+    - DESCRIBE=$(git -C liblinphone describe)
+    - echo $DESCRIBE
+    - !reference [macos-m1-multiarch-makefile, script]
+
+macos-xcode-pqc:
+  extends: macos-xcode
+  variables:
+    CMAKE_OPTIONS: -DENABLE_LDAP=ON -DENABLE_NON_FREE_FEATURES=ON -DENABLE_PQCRYPTO=ON
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $ALL_MACOS_BUILDS != null
+
+macos-ninja-spm:
+  extends: macos-ninja
+  tags: [ "macos-xcode15-flat" ]
+  variables:
+    CMAKE_OPTIONS: -DENABLE_FAT_BINARY=NO
+    GIT_FETCH_EXTRA_FLAGS: --tags --force --recurse-submodules=yes
+    GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8 --force --recursive
+    LINPHONESDK_MACOS_ARCHS: "arm64,x86_64"
+    SWIFT_PACKAGE_FLAVOR: ""
+
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $ALL_MACOS_BUILDS != null
+  script:
+    - DESCRIBE=$(git describe)
+    - echo $DESCRIBE
+    - !reference [.choose_url_macos, script]
+    - UPLOAD_CMAKE_OPTIONS="-DLINPHONESDK_MACOS_BASE_URL=$MACOS_URL/spm/${SWIFT_PACKAGE_FLAVOR} -DUPLOAD_SWIFT_PACKAGE=ON"
+    - !reference [macos-ninja, script]
+
+macos-ninja-spm-novideo:
+  rules:
+    - !reference [.rules-merge-request-manual, rules]
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $ALL_MACOS_BUILDS != null
+  variables:
+    CMAKE_OPTIONS: -DENABLE_VIDEO=OFF -DENABLE_FAT_BINARY=NO
+    SWIFT_PACKAGE_FLAVOR: "novideo"
+  extends: macos-ninja-spm
+  script:
+    - !reference [macos-ninja-spm, script]

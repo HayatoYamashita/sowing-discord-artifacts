@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Note: This file will be injected into the target project -->
+  <!-- Includes the native dll files as content to make sure that they are included in the app package -->
+	<PropertyGroup>
+		<LinphoneSDK-Platform Condition="'$(Platform)' == 'Win32'">x86</LinphoneSDK-Platform>
+		<LinphoneSDK-Platform Condition="'$(Platform)' != 'Win32'">$(Platform)</LinphoneSDK-Platform>
+		<LinphoneSDK-Framework Condition="'$(TargetPlatformIdentifier)' != 'UAP10.0' and '$(TargetPlatformIdentifier)' != 'UAP'">netcore</LinphoneSDK-Framework>
+		<LinphoneSDK-Framework Condition="'$(TargetPlatformIdentifier)' == 'UAP10.0' or '$(TargetPlatformIdentifier)' == 'UAP'">uap10.0</LinphoneSDK-Framework>
+		<LinphoneSDK-Content Condition="'$(LinphoneSDK-Content)' == ''">share</LinphoneSDK-Content>
+		<LinphoneSDK-LibrariesPath>$(MSBuildThisFileDirectory)\..\..\lib\$(LinphoneSDK-Framework)\$(LinphoneSDK-Platform)</LinphoneSDK-LibrariesPath>
+	</PropertyGroup>
+	<Target Name="InjectReference" BeforeTargets="ResolveAssemblyReferences">
+		<ItemGroup>
+			<Reference Include="LinphoneSDK.Windows">
+				<HintPath>$(LinphoneSDK-LibrariesPath)\CsWrapper.dll</HintPath>
+			</Reference>
+		</ItemGroup>
+	</Target>
+
+	<Target Name="CopyNativeLibraries" BeforeTargets="ResolveAssemblyReferences">
+		<ItemGroup>
+			<Content Include="$(LinphoneSDK-LibrariesPath)\**\*.dll;$(LinphoneSDK-LibrariesPath)\**\*.pdb">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			</Content>
+		</ItemGroup>
+	</Target>
+	<ItemGroup>
+		<Content Include="$(MSBuildThisFileDirectory)\..\..\content\**\*" CopyToPublishDirectory="Always" Link="$(LinphoneSDK-Content)\%(RecursiveDir)%(FileName)%(Extension)">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+</Project>
