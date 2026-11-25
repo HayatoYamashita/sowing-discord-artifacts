@@ -92,10 +92,17 @@ source tree is carried by this repository; their contents are unchanged.
 ## Citation
 
 ```bibtex
-@inproceedings{yamashita2027Discord,
-  author    = {Hayato Yamashita and Hayato Kimura and Atsushi Tanaka and Takanori Isobe},
-  title     = {Sowing Discord: Exploiting the Lack of Key Commitment in {E2EE} Group {RTC}},
-  booktitle = {2027 IEEE Symposium on Security and Privacy (SP)},
-  year      = {2027}
+@INPROCEEDINGS {yamashita2027Discord,
+author = { Yamashita, Hayato and Kimura, Hayato and Tanaka, Atsushi and Isobe, Takanori },
+booktitle = { 2027 IEEE Symposium on Security and Privacy (SP) },
+title = {{ Sowing Discord: Exploiting the Lack of Key Commitment in E2EE Group RTC }},
+year = {2027},
+ISSN = {2375-1207},
+pages = {54-73},
+doi = {10.1109/SP68766.2027.00003},
+url = {https://doi.ieeecomputersociety.org/10.1109/SP68766.2027.00003},
+publisher = {IEEE Computer Society},
 }
+
+
 ```
